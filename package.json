@@ -1,0 +1,32 @@
+{
+  "name": "price-is-right-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./out/index.js",
+    "tstart": "npx ts-node ./src/index.ts",
+    "build": "tsc",
+    "watch": "nodemon ./src/index.ts",
+    "watch-debug": "export DEBUG='telegraf:*' && nodemon ./src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@telegraf/session": "2.0.0-beta.7",
+    "bullmq": "^5.7.8",
+    "discord.js-selfbot-v13": "^3.1.4",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "redis": "^4.6.13",
+    "telegraf": "^4.16.3",
+    "winston": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.11",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typegram": "^5.2.0"
+  }
+}
