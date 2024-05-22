@@ -5,7 +5,7 @@ const REDIS_HOST = process.env.REDIS_HOST ?? '127.0.0.1';
 const REDIS_PORT = process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379;
 export const REDIS_CONNECTION = `redis://${REDIS_HOST}:${REDIS_PORT}`;
 const QUEUE_DB = process.env.QUEUE_DB ? parseInt(process.env.QUEUE_DB) : 1;
-const TELEGRAM_SESSION_DB = process.env.TELEGRAM_SESSION_DB ? parseInt(process.env.TELEGRAM_SESSION_DB) : 0;
+const DEFAULT_DB = process.env.DEFAULT_DB ? parseInt(process.env.DEFAULT_DB) : 0;
 
 export const redisQueue = new Redis({
   port: REDIS_PORT,
@@ -25,7 +25,7 @@ redisQueue.on('error', (error) => {
 export const redis = new Redis({
   port: REDIS_PORT,
   host: REDIS_HOST,
-  db: TELEGRAM_SESSION_DB
+  db: DEFAULT_DB
 });
 
 redis.on('ready', () => {

@@ -4,17 +4,17 @@ import * as fs from 'node:fs';
 const AUDIO_PATH = 'assets/audio';
 const SEPARATOR = '/';
 
-interface AudioFilePath {
-  fullPath: string,
-  extension: string,
+type AudioFilePath = {
+  fullPath: string;
+  extension: string;
 }
 
-interface Category {
-  [key: string]: AudioFilePath
+type Category = {
+  [key: string]: AudioFilePath;
 }
 
-interface Categories {
-  [key: string]: Category
+type Categories = {
+  [key: string]: Category;
 }
 
 class AudioFiles {

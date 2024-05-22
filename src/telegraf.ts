@@ -1,4 +1,4 @@
-import { REDIS_CONNECTION } from './cache'; 
+import { REDIS_CONNECTION } from './cache';
 import { logger } from './logger';
 import { Telegraf, session, type Context, Input } from 'telegraf';
 import type { Update, User } from 'telegraf/types';
@@ -7,12 +7,12 @@ import { Redis } from "@telegraf/session/redis";
 import { bold, fmt, italic, join, mention } from 'telegraf/format';
 import { audioFiles } from './audio';
 
-const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
-export const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT;
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
+export const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT || '';
 const TELEGRAM_CHAT_TYPE = process.env.TELEGRAM_CHAT_TYPE;
 const TELEGRAM_SESSION_DB = process.env.TELEGRAM_SESSION_DB ? parseInt(process.env.TELEGRAM_SESSION_DB) : 0;
 
-export interface SessionData {
+export type SessionData = {
   filters: string[],
   isSubscribed: boolean,
   joined: number
@@ -40,20 +40,24 @@ bot.use(session({
 bot.use(async (ctx, next) => {
   const start = performance.now();
 
-  if (ctx.chat.type === TELEGRAM_CHAT_TYPE  && ctx.chat.id === parseInt(TELEGRAM_CHAT)) {
+  if (ctx.chat && ctx.chat.type === TELEGRAM_CHAT_TYPE  && ctx.chat.id === parseInt(TELEGRAM_CHAT)) {
     await next();
   }
-  
+
   const end = performance.now();
   logger.info(`Processing update ${ctx.update.update_id}: ${(end - start).toPrecision(3)}ms`);
 });
+
+// bot.on(message('text'), (ctx) => {
+//     console.log(ctx.message)
+// });
 
 // TODO: Add Command for Admin to get queue stats, restart, pause, etc
 // TODO: Learn how to use scenes to give members a UI for add, editing, deleting filters and check sub status
 /* bot.on(message('new_chat_members'), async (ctx) => {
   let messageBuilder = [];
 
-  ctx.update.message.new_chat_members.forEach((new_chat_member: User) => { 
+  ctx.update.message.new_chat_members.forEach((new_chat_member: User) => {
     messageBuilder.push(mention(new_chat_member.first_name, new_chat_member));
     messageBuilder.push(', ');
   });
@@ -84,7 +88,7 @@ bot.catch((err, ctx) => {
 });
 
 // Enable graceful stop
-const gracefulShutdown = async (signal) => {
+const gracefulShutdown = async (signal: string) => {
   logger.info(`Received ${signal}, closing Telegram Bot`);
   await bot.stop(signal);
 }
