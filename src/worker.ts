@@ -29,7 +29,7 @@ const QUEUE_LIMIT_MAX = process.env.QUEUE_LIMIT_MAX
     : 10;
 const QUEUE_LIMIT_DURATION = process.env.QUEUE_LIMIT_DURATION
     ? parseInt(process.env.QUEUE_LIMIT_DURATION)
-    : 1000;
+    : 60000;
 
 export type TelegramThread = {
     name: string;
