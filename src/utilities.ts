@@ -1,13 +1,13 @@
-import { TelegramThread } from "./worker";
+import { TelegramThread } from './worker';
 
 const THREAD_DELIMITER = ';';
 const OBJECT_DELIMITER = ':';
 
-function isEmpty (input: string): boolean {
-  return !input || input === ''
+function isEmpty(input: string): boolean {
+    return !input || input === '';
 }
 
-function parseTelegramThreadIds (input: string): TelegramThread[] {
+function parseTelegramThreadIds(input: string): TelegramThread[] {
     if (input.length === 0) {
         return [];
     }
@@ -15,11 +15,11 @@ function parseTelegramThreadIds (input: string): TelegramThread[] {
     let threadIds: TelegramThread[] = [];
 
     input.split(THREAD_DELIMITER).forEach((thread) => {
-        const [ name, id ] = thread.split(OBJECT_DELIMITER);
+        const [name, id] = thread.split(OBJECT_DELIMITER);
         if (name && id) {
             threadIds.push({
                 name,
-                messageThreadId: parseInt(id)
+                messageThreadId: parseInt(id),
             });
         }
     });
@@ -27,7 +27,4 @@ function parseTelegramThreadIds (input: string): TelegramThread[] {
     return threadIds;
 }
 
-export {
-  isEmpty,
-  parseTelegramThreadIds,
-};
+export { isEmpty, parseTelegramThreadIds };
