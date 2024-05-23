@@ -37,6 +37,6 @@
     "typegram": "^5.2.0"
   },
   "lint-staged": {
-    "**/*": "prettier --write --ignore-unknown"
+    "*.ts": "prettier --write --ignore-unknown"
   }
 }
