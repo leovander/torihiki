@@ -31,9 +31,18 @@ const QUEUE_LIMIT_MAX = process.env.QUEUE_LIMIT_MAX
 const QUEUE_LIMIT_DURATION = process.env.QUEUE_LIMIT_DURATION
     ? parseInt(process.env.QUEUE_LIMIT_DURATION)
     : 60000;
+const BACKOFF_TYPE = process.env.BACKOFF_TYPE
+    ? process.env.BACKOFF_TYPE
+    : 'exponential';
 
 export interface TelegramThreadIds {
     [index: string]: number;
+}
+
+export interface RepeatableJob<DataType> {
+    name: string;
+    data: DataType;
+    options: JobsOptions;
 }
 
 export class LocalWorker<DataType> {
@@ -43,13 +52,15 @@ export class LocalWorker<DataType> {
     jobOptions: JobsOptions;
     queue: Queue;
     worker: Worker;
-    process: (job: Job<DataType>) => Promise<number | undefined>;
+    repeatableJobs: Job<DataType>[];
+    process: (job: Job<DataType>) => Promise<string>;
     rateLimiter: (error: Error, job: Job<DataType>) => Promise<void>;
 
     constructor(
         queueName: string,
         queueOptions: QueueOptions,
-        process: (job: Job<DataType>) => Promise<number | undefined>,
+        process: (job: Job<DataType>) => Promise<string>,
+        repeatableJobs?: RepeatableJob<DataType>[],
         rateLimiter?: (error: Error, job: Job<DataType>) => Promise<void>,
         jobOptions?: JobsOptions,
     ) {
@@ -69,7 +80,7 @@ export class LocalWorker<DataType> {
                 removeOnFail: DEFAULT_QUEUE_REMOVE_ON_FAIL_COUNT,
                 attempts: DEFAULT_ATTEMPTS,
                 backoff: {
-                    type: 'exponential',
+                    type: BACKOFF_TYPE,
                     delay: DEFAULT_BACKOFF_DELAY,
                 },
             };
@@ -86,6 +97,25 @@ export class LocalWorker<DataType> {
         });
 
         this.process = process;
+
+        this.repeatableJobs = [];
+
+        if (repeatableJobs) {
+            // TODO: Loop through jobs and add to queue
+            this.setRepeatableJobs(repeatableJobs);
+        }
+
+        this.worker = new Worker<DataType>(this.queueName, this.process, {
+            ...this.queueOptions,
+            limiter: {
+                max: QUEUE_LIMIT_MAX,
+                duration: QUEUE_LIMIT_DURATION,
+            },
+            metrics: {
+                maxDataPoints: MetricsTime.ONE_WEEK * 2,
+            },
+            autorun: false,
+        });
 
         if (rateLimiter) {
             this.rateLimiter = rateLimiter;
@@ -115,18 +145,6 @@ export class LocalWorker<DataType> {
             };
         }
 
-        this.worker = new Worker<DataType>(this.queueName, this.process, {
-            ...this.queueOptions,
-            limiter: {
-                max: QUEUE_LIMIT_MAX,
-                duration: QUEUE_LIMIT_DURATION,
-            },
-            metrics: {
-                maxDataPoints: MetricsTime.ONE_WEEK * 2,
-            },
-            autorun: false,
-        });
-
         this.worker.on('ready', () => {
             logger.info(`Worker ${this.queueName} is ready!`);
         });
@@ -149,9 +167,9 @@ export class LocalWorker<DataType> {
 
         this.worker.on(
             'completed',
-            (job: Job<DataType>, returnvalue: number) => {
+            (job: Job<DataType>, returnvalue: string) => {
                 logger.info(
-                    `Message Completed - ${job.queueName}:${job.id}:telegram:${returnvalue}`,
+                    `Message Completed - ${job.queueName}:${job.id}:${returnvalue}`,
                 );
 
                 Promise.all([
@@ -188,5 +206,31 @@ export class LocalWorker<DataType> {
 
     async addJob(data: DataType): Promise<Job<DataType>> {
         return await this.queue.add(this.jobName, data, this.jobOptions);
+    }
+
+    async setRepeatableJobs(
+        repeatableJobs: RepeatableJob<DataType>[],
+    ): Promise<void> {
+        const existingJobs = await this.queue.getRepeatableJobs();
+        logger.info(
+            `${this.queueName} - removing previous repeatable jobs (${existingJobs.length})`,
+        );
+        for await (const existingJob of existingJobs) {
+            this.queue.removeRepeatableByKey(existingJob.key);
+        }
+
+        for await (const repeatableJob of repeatableJobs) {
+            await this.queue.removeRepeatable(
+                `${repeatableJob.name}-repeat`,
+                repeatableJob.options,
+            );
+
+            const job = await this.queue.add(
+                `${repeatableJob.name}-repeat`,
+                repeatableJob.data,
+                repeatableJob.options,
+            );
+            this.repeatableJobs.push(job);
+        }
     }
 }

@@ -1,11 +1,12 @@
 import { REDIS_CONNECTION } from './cache';
 import { logger } from './logger';
 import { Telegraf, session, type Context } from 'telegraf';
-import type { Update } from 'telegraf/types';
+import type { Update, User } from 'telegraf/types';
 import { message } from 'telegraf/filters';
 import { Redis } from '@telegraf/session/redis';
 import { audioFiles } from './audio';
 import { parseTelegramThreadIds } from './utilities';
+import { bold, italic, join, mention } from 'telegraf/format';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
 export const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT || '';
@@ -72,25 +73,34 @@ bot.use(async (ctx, next) => {
 
 // TODO: Add Command for Admin to get queue stats, restart, pause, etc
 // TODO: Learn how to use scenes to give members a UI for add, editing, deleting filters and check sub status
-/* bot.on(message('new_chat_members'), async (ctx) => {
-  let messageBuilder = [];
+bot.on(message('new_chat_members'), async (ctx) => {
+    let messageBuilder = [];
 
-  ctx.update.message.new_chat_members.forEach((new_chat_member: User) => {
-    messageBuilder.push(mention(new_chat_member.first_name, new_chat_member));
-    messageBuilder.push(', ');
-  });
+    ctx.update.message.new_chat_members.forEach((new_chat_member: User) => {
+        messageBuilder.push(
+            mention(new_chat_member.first_name, new_chat_member),
+        );
+        messageBuilder.push(', ');
+    });
 
-  messageBuilder.push('come on down!\nYou\'re the next contestant on, ');
-  messageBuilder.push(bold(italic('The Price is Right!')));
+    messageBuilder.push("come on down!\nYou're the next contestant on, ");
+    messageBuilder.push(bold(italic('The Price is Right!')));
 
-  await ctx.replyWithVoice({ source: audioFiles.categories['salutations']['discord_join'].fullPath }, {
-    caption: join(messageBuilder),
-    reply_parameters: {
-      message_id: ctx.update.message.message_id
-    }
-  });
+    await ctx.replyWithVoice(
+        {
+            source: audioFiles.categories['salutations']['discord_join']
+                .fullPath,
+        },
+        {
+            caption: join(messageBuilder),
+            reply_parameters: {
+                message_id: ctx.update.message.message_id,
+            },
+        },
+    );
 });
 
+/*
 bot.on(message('left_chat_member'), async (ctx) => {
   await ctx.replyWithVoice({ source: audioFiles.categories['salutations']['discord_leave'].fullPath }, {
     caption: italic('Psssh… Nothin Personnel… Kid…'),
