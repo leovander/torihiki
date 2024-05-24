@@ -101,7 +101,6 @@ export class LocalWorker<DataType> {
         this.repeatableJobs = [];
 
         if (repeatableJobs) {
-            // TODO: Loop through jobs and add to queue
             this.setRepeatableJobs(repeatableJobs);
         }
 
@@ -160,7 +159,6 @@ export class LocalWorker<DataType> {
                     logger.error(
                         `Message Failed - ${job.queueName}:${job.id} - ${error}`,
                     );
-                    //TODO: Send message to Admin, via telegram or pushover:
                 }
             },
         );

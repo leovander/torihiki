@@ -52,7 +52,6 @@ bot.use(
 bot.use(async (ctx, next) => {
     const start = performance.now();
 
-    // TODO: Or if is a known, allow listed user
     if (
         ctx.chat &&
         ctx.chat.type === TELEGRAM_CHAT_TYPE &&
@@ -71,8 +70,6 @@ bot.use(async (ctx, next) => {
 //     console.log(ctx.message);
 // });
 
-// TODO: Add Command for Admin to get queue stats, restart, pause, etc
-// TODO: Learn how to use scenes to give members a UI for add, editing, deleting filters and check sub status
 bot.on(message('new_chat_members'), async (ctx) => {
     let messageBuilder = [];
 

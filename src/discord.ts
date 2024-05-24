@@ -14,7 +14,6 @@ client.on('ready', async () => {
 });
 
 client.on('messageCreate', async (message: Message) => {
-    // TODO: Filter out messages before adding to queue: by known guild/chatIds
     if (message.isMessage && isEmpty(message.content)) {
         return;
     }
