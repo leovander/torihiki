@@ -1,11 +1,11 @@
 import { REDIS_CONNECTION } from './cache';
 import { logger } from './logger';
-import { Telegraf, session, type Context, Input } from 'telegraf';
-import type { Update, User } from 'telegraf/types';
+import { Telegraf, session, type Context } from 'telegraf';
+import type { Update } from 'telegraf/types';
 import { message } from 'telegraf/filters';
 import { Redis } from '@telegraf/session/redis';
-import { bold, fmt, italic, join, mention } from 'telegraf/format';
 import { audioFiles } from './audio';
+import { parseTelegramThreadIds } from './utilities';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
 export const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT || '';
@@ -13,6 +13,9 @@ const TELEGRAM_CHAT_TYPE = process.env.TELEGRAM_CHAT_TYPE;
 const TELEGRAM_SESSION_DB = process.env.TELEGRAM_SESSION_DB
     ? parseInt(process.env.TELEGRAM_SESSION_DB)
     : 0;
+export const TELEGRAM_THREAD_IDS = process.env.TELEGRAM_THREAD_IDS
+    ? parseTelegramThreadIds(process.env.TELEGRAM_THREAD_IDS)
+    : {};
 
 export type SessionData = {
     filters: string[];
@@ -48,6 +51,7 @@ bot.use(
 bot.use(async (ctx, next) => {
     const start = performance.now();
 
+    // TODO: Or if is a known, allow listed user
     if (
         ctx.chat &&
         ctx.chat.type === TELEGRAM_CHAT_TYPE &&
@@ -63,7 +67,7 @@ bot.use(async (ctx, next) => {
 });
 
 // bot.on(message('text'), (ctx) => {
-//     console.log(ctx.message)
+//     console.log(ctx.message);
 // });
 
 // TODO: Add Command for Admin to get queue stats, restart, pause, etc

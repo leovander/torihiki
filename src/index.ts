@@ -29,8 +29,6 @@ async function main() {
             process.exit(1);
         });
 
-    const hash = createHash('sha256');
-
     parse(
         'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1',
     ).then(async (rss) => {
@@ -49,10 +47,19 @@ async function main() {
                 };
 
                 const url = new URL(item.link);
-                newItem.link = `${url.origin}${url.pathname}`;
-                hash.update(newItem.link);
+                let pathname = url.pathname;
 
-                newItem.id = hash.copy().digest('hex');
+                const regex = new RegExp(/(\/f\/\d*)-/);
+
+                const match = pathname.match(regex);
+                if (match) {
+                    pathname = match[1];
+                }
+                newItem.link = `${url.origin}${pathname}`;
+
+                newItem.id = createHash('sha256')
+                    .update(Buffer.from(newItem.link))
+                    .digest('hex');
 
                 const isCached = await redis.get(`slickdeals:${newItem.id}`);
                 if (isCached === null) {

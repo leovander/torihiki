@@ -7,6 +7,7 @@ import {
     Worker,
 } from 'bullmq';
 import { logger } from './logger';
+import { TelegramError } from 'telegraf';
 
 const DEFAULT_QUEUE_REMOVE_ON_COMPLETE_AGE = process.env.REMOVE_ON_COMPLETE_AGE
     ? parseInt(process.env.REMOVE_ON_COMPLETE_AGE)
@@ -31,37 +32,28 @@ const QUEUE_LIMIT_DURATION = process.env.QUEUE_LIMIT_DURATION
     ? parseInt(process.env.QUEUE_LIMIT_DURATION)
     : 60000;
 
-export type TelegramThread = {
-    name: string;
-    messageThreadId: number;
-};
+export interface TelegramThreadIds {
+    [index: string]: number;
+}
 
 export class LocalWorker<DataType> {
     queueName: string;
-    telegramThreadIds: any;
     jobName: string;
     queueOptions: QueueOptions;
     jobOptions: JobsOptions;
     queue: Queue;
     worker: Worker;
     process: (job: Job<DataType>) => Promise<number | undefined>;
-    //   rateLimiter: () => Promise<Error>;
+    rateLimiter: (error: Error, job: Job<DataType>) => Promise<void>;
 
     constructor(
         queueName: string,
-        telegramThreadIds: TelegramThread[],
         queueOptions: QueueOptions,
         process: (job: Job<DataType>) => Promise<number | undefined>,
+        rateLimiter?: (error: Error, job: Job<DataType>) => Promise<void>,
         jobOptions?: JobsOptions,
     ) {
         this.queueName = queueName;
-        this.telegramThreadIds = [];
-
-        if (telegramThreadIds.length > 0) {
-            telegramThreadIds.forEach((thread) => {
-                this.telegramThreadIds[thread.name] = thread.messageThreadId;
-            });
-        }
 
         this.jobName = `${queueName}Message`;
         this.queueOptions = queueOptions;
@@ -94,6 +86,34 @@ export class LocalWorker<DataType> {
         });
 
         this.process = process;
+
+        if (rateLimiter) {
+            this.rateLimiter = rateLimiter;
+        } else {
+            this.rateLimiter = async (
+                error: Error,
+                job: Job<DataType>,
+            ): Promise<void> => {
+                const tError = error as TelegramError;
+                if (tError.code === 429) {
+                    const regex = new RegExp(/retry after (\d*)$/);
+                    const match = error.message.match(regex);
+
+                    if (match) {
+                        const duration = parseInt(match[1]);
+                        logger.error(
+                            `Rate Limited for ${duration} while processing message - ${job.queueName}:${job.name}:${job.id}`,
+                        );
+
+                        await this.worker.rateLimit(duration);
+
+                        throw Worker.RateLimitError();
+                    }
+                } else {
+                    throw error;
+                }
+            };
+        }
 
         this.worker = new Worker<DataType>(this.queueName, this.process, {
             ...this.queueOptions,
