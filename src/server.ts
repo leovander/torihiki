@@ -10,7 +10,7 @@ const express = require('express');
 
 const PORT = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3000;
 
-export const app = express();
+const app = express();
 
 app.use((req: any, res: any, next: any) => {
     logger.info(`Request on ${req.path}`);
@@ -31,6 +31,14 @@ const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
 
 app.use('/queues', serverAdapter.getRouter());
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     logger.info(`Server Listening on ${PORT}`);
 });
+
+const gracefulShutdown = async (signal: string) => {
+    logger.info(`Received ${signal}, closing HTTP Server`);
+    server.close();
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
