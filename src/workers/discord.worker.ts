@@ -19,7 +19,7 @@ export const worker = new LocalWorker<DISCORD_MESSAGE>(
     {
         connection: redisQueue,
     },
-    async (job: Job<DISCORD_MESSAGE>): Promise<number | undefined> => {
+    async (job: Job<DISCORD_MESSAGE>): Promise<string> => {
         const discordData = job.data;
 
         let telegramResponse;
@@ -32,6 +32,6 @@ export const worker = new LocalWorker<DISCORD_MESSAGE>(
                 }
             });
 
-        return telegramResponse?.message_id;
+        return telegramResponse?.message_id.toString() ?? '';
     },
 );

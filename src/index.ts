@@ -6,6 +6,7 @@ import { bot as telegramBot } from './telegraf';
 import { client as discordBot, DISCORD_TOKEN } from './discord';
 import { redis } from './cache';
 import './audio';
+import './server';
 import { runWorkers } from './workers';
 
 async function main() {
