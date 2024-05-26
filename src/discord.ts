@@ -1,7 +1,7 @@
 import { Client, Message, TextChannel } from 'discord.js-selfbot-v13';
 import { logger } from './logger';
-import { worker as discordWorker } from './workers/discord.worker';
 import { isEmpty } from './utilities';
+import { worker as discordWorker } from './workers/discord.worker';
 
 export const DISCORD_TOKEN = process.env.DISCORD_TOKEN ?? '';
 
@@ -9,7 +9,7 @@ export const client = new Client();
 
 client.on('ready', async () => {
     if (client?.user) {
-        logger.info(`Discord bot (${client.user.username}) is ready!`);
+        logger.info(`Discord bot (${client.user.username})`);
     }
 });
 
@@ -35,7 +35,3 @@ client.on('messageCreate', async (message: Message) => {
 
     await discordWorker.addJob(jobData);
 });
-
-// Enable graceful stop
-process.once('SIGINT', () => client.destroy());
-process.once('SIGTERM', () => client.destroy());

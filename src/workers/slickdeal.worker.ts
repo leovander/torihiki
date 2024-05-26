@@ -1,14 +1,14 @@
-import { redis, redisQueue } from '../cache';
-import { LocalWorker } from '../worker';
 import { Job } from 'bullmq';
+import { createHash } from 'node:crypto';
+import { parse } from 'rss-to-json';
+import { redis, redisQueue } from '../cache';
+import { logger } from '../logger';
 import {
-    bot as telegramBot,
     TELEGRAM_CHAT,
     TELEGRAM_THREAD_IDS,
+    bot as telegramBot,
 } from '../telegraf';
-import { parse } from 'rss-to-json';
-import { createHash } from 'node:crypto';
-import { logger } from '../logger';
+import { LocalWorker } from '../worker';
 
 const QUEUE_NAME = 'slickdeal';
 

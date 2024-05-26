@@ -1,7 +1,7 @@
-import { redisQueue } from '../cache';
-import { LocalWorker } from '../worker';
 import { Job } from 'bullmq';
-import { bot as telegramBot, TELEGRAM_CHAT } from '../telegraf';
+import { redisQueue } from '../cache';
+import { TELEGRAM_CHAT, bot as telegramBot } from '../telegraf';
+import { LocalWorker } from '../worker';
 
 const QUEUE_NAME = 'discord';
 

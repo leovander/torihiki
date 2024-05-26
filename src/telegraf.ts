@@ -1,12 +1,12 @@
+import { Redis } from '@telegraf/session/redis';
+import { Telegraf, session, type Context } from 'telegraf';
+import { message } from 'telegraf/filters';
+import { bold, italic, join, mention } from 'telegraf/format';
+import type { Update, User } from 'telegraf/types';
+import { audioFiles } from './audio';
 import { REDIS_CONNECTION } from './cache';
 import { logger } from './logger';
-import { Telegraf, session, type Context } from 'telegraf';
-import type { Update, User } from 'telegraf/types';
-import { message } from 'telegraf/filters';
-import { Redis } from '@telegraf/session/redis';
-import { audioFiles } from './audio';
 import { parseTelegramThreadIds } from './utilities';
-import { bold, italic, join, mention } from 'telegraf/format';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
 export const TELEGRAM_CHAT = process.env.TELEGRAM_CHAT || '';
@@ -111,12 +111,3 @@ bot.on(message('left_chat_member'), async (ctx) => {
 bot.catch((err, ctx) => {
     logger.error(`Error in Telegram Bot: ${err}`);
 });
-
-// Enable graceful stop
-const gracefulShutdown = async (signal: string) => {
-    logger.info(`Received ${signal}, closing Telegram Bot`);
-    await bot.stop(signal);
-};
-
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

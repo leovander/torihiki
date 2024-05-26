@@ -1,12 +1,11 @@
 import dotenv = require('dotenv');
 dotenv.config();
 
-import { logger } from './logger';
-import { bot as telegramBot } from './telegraf';
-import { client as discordBot, DISCORD_TOKEN } from './discord';
-import { redis } from './cache';
 import './audio';
+import { redis } from './cache';
+import { logger } from './logger';
 import './server';
+import { bot as telegramBot } from './telegraf';
 import { runWorkers } from './workers';
 
 async function main() {
@@ -19,7 +18,7 @@ async function main() {
     ])
         .then((values) => {
             const [user] = values;
-            logger.info(`Telegram bot (${user.first_name}) is ready!`);
+            logger.info(`Telegram bot (${user.first_name})`);
             runWorkers();
         })
         .catch((error) => {

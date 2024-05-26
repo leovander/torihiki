@@ -1,4 +1,9 @@
-import { TelegramThreadIds } from './worker';
+import { client as discordBot } from './discord';
+import { logger } from './logger';
+import { server } from './server';
+import { bot as telegramBot } from './telegraf';
+import { LocalWorker, TelegramThreadIds } from './worker';
+import { workers } from './workers';
 
 const THREAD_DELIMITER = ';';
 const OBJECT_DELIMITER = ':';
@@ -24,4 +29,28 @@ function parseTelegramThreadIds(input: string): TelegramThreadIds {
     return threadIds;
 }
 
-export { isEmpty, parseTelegramThreadIds };
+// Enable graceful stop
+async function gracefulShutdown(signal: string) {
+    logger.info(`Received ${signal}, closing HTTP Server`);
+    server.close();
+
+    logger.info(`Received ${signal}, destroying Discord Bot`);
+    discordBot.destroy();
+
+    logger.info(`Received ${signal}, closing Telegram Bot`);
+    await telegramBot.stop(signal);
+
+    await Promise.all(
+        Object.values(workers).map((worker: LocalWorker<any>) => {
+            logger.info(
+                `Received ${signal}, closing Worker (${worker.queueName})`,
+            );
+            return worker.worker.close();
+        }),
+    );
+}
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
+export { gracefulShutdown, isEmpty, parseTelegramThreadIds };

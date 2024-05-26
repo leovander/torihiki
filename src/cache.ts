@@ -19,7 +19,7 @@ export const redisQueue = new Redis({
 });
 
 redisQueue.on('ready', () => {
-    logger.info(`Redis Connection (Queue) is ready!`);
+    logger.info(`Redis Connection (Queue)`);
 });
 
 redisQueue.on('error', (error) => {
@@ -33,7 +33,7 @@ export const redis = new Redis({
 });
 
 redis.on('ready', () => {
-    logger.info(`Redis Connection (Redis) is ready!`);
+    logger.info(`Redis Connection (Redis)`);
 });
 
 redis.on('error', (error) => {

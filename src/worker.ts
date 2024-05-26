@@ -6,8 +6,8 @@ import {
     QueueOptions,
     Worker,
 } from 'bullmq';
-import { logger } from './logger';
 import { TelegramError } from 'telegraf';
+import { logger } from './logger';
 
 const DEFAULT_QUEUE_REMOVE_ON_COMPLETE_AGE = process.env.REMOVE_ON_COMPLETE_AGE
     ? parseInt(process.env.REMOVE_ON_COMPLETE_AGE)
@@ -145,7 +145,7 @@ export class LocalWorker<DataType> {
         }
 
         this.worker.on('ready', () => {
-            logger.info(`Worker ${this.queueName} is ready!`);
+            logger.info(`Worker (${this.queueName}) ready`);
         });
 
         this.worker.on('error', (err) => {

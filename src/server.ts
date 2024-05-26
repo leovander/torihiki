@@ -32,15 +32,6 @@ const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
 
 app.use('/queues', serverAdapter.getRouter());
 
-const server = app.listen(PORT, () => {
-    logger.info(`Server Listening on ${PORT}`);
+export const server = app.listen(PORT, () => {
+    logger.info(`Server Listening on (${PORT})`);
 });
-
-const gracefulShutdown = (signal: string) => {
-    logger.info(`Received ${signal}, closing HTTP Server`);
-    server.close();
-    process.exit(0);
-};
-
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
