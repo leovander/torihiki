@@ -5,6 +5,9 @@ settings:
   excludeLinksFromLockfile: false
 
 dependencies:
+  '@bull-board/api':
+    specifier: ^5.18.3
+    version: 5.18.3(@bull-board/ui@5.18.3)
   '@bull-board/express':
     specifier: ^5.18.3
     version: 5.18.3
@@ -64,6 +67,9 @@ devDependencies:
   typegram:
     specifier: ^5.2.0
     version: 5.2.0
+  typescript:
+    specifier: ^5.4.5
+    version: 5.4.5
 
 packages:
 

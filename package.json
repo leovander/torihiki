@@ -16,6 +16,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@bull-board/api": "^5.18.3",
     "@bull-board/express": "^5.18.3",
     "@telegraf/session": "2.0.0-beta.7",
     "bullmq": "^5.7.8",
@@ -36,7 +37,8 @@
     "prettier": "^3.2.5",
     "ts-node": "^10.9.2",
     "tsc-watch": "^6.2.0",
-    "typegram": "^5.2.0"
+    "typegram": "^5.2.0",
+    "typescript": "^5.4.5"
   },
   "lint-staged": {
     "*.ts": "prettier --write --ignore-unknown"

@@ -1,5 +1,4 @@
 import { logger } from './logger';
-import { LocalWorker } from './worker';
 import { workers } from './workers';
 
 const { createBullBoard } = require('@bull-board/api');
@@ -21,7 +20,9 @@ const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/queues');
 
 const queues = Object.values(workers).map((worker) => {
-    return new BullMQAdapter(worker.queue);
+    return new BullMQAdapter(worker.queue, {
+        readOnlyMode: true,
+    });
 });
 
 const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
@@ -35,9 +36,10 @@ const server = app.listen(PORT, () => {
     logger.info(`Server Listening on ${PORT}`);
 });
 
-const gracefulShutdown = async (signal: string) => {
+const gracefulShutdown = (signal: string) => {
     logger.info(`Received ${signal}, closing HTTP Server`);
     server.close();
+    process.exit(0);
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
