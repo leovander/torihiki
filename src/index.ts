@@ -1,12 +1,16 @@
 import dotenv = require('dotenv');
 dotenv.config();
 
-import './audio';
-import { redis } from './cache';
-import { logger } from './logger';
-import './server';
-import { bot as telegramBot } from './telegraf';
-import { runWorkers } from './workers';
+import './lib/audio';
+import { redis } from './lib/cache';
+import { logger } from './lib/logger';
+import './lib/server';
+import {
+    generateDynamicActions,
+    setTelegramDetails,
+    bot as telegramBot,
+} from './lib/telegraf';
+import { runWorkers, workers } from './lib/workers';
 
 async function main() {
     telegramBot.launch();
@@ -20,10 +24,12 @@ async function main() {
             const [user] = values;
             logger.info(`Telegram bot (${user.first_name})`);
             runWorkers();
+            generateDynamicActions(workers);
+            setTelegramDetails();
         })
-        .catch((error) => {
-            logger.error(`Could not connect to Telegram: ${error}`);
-            process.exit(1);
+        .catch(async (error) => {
+            logger.error(`Telegram Bot Error: ${error}`);
+            // process.exit(1);
         });
 }
 

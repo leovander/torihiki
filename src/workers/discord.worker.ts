@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
-import { redisQueue } from '../cache';
-import { TELEGRAM_CHAT, bot as telegramBot } from '../telegraf';
-import { LocalWorker } from '../worker';
+import { redisQueue } from '../lib/cache';
+import { TELEGRAM_CHAT_ID, bot as telegramBot } from '../lib/telegraf';
+import { LocalWorker } from '../lib/worker';
 
 const QUEUE_NAME = 'discord';
 
@@ -25,7 +25,7 @@ export const worker = new LocalWorker<DISCORD_MESSAGE>(
         let telegramResponse;
 
         telegramResponse = await telegramBot.telegram
-            .sendMessage(TELEGRAM_CHAT, discordData.content)
+            .sendMessage(TELEGRAM_CHAT_ID, discordData.content)
             .catch(async (err: Error) => {
                 if (worker.rateLimiter) {
                     await worker.rateLimiter(err, job);

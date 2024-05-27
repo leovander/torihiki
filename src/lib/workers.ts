@@ -1,6 +1,6 @@
+import { worker as slickdealWorker } from '../workers/slickdeal.worker';
 import { logger } from './logger';
 import { LocalWorker } from './worker';
-import { worker as slickdealWorker } from './workers/slickdeal.worker';
 
 export const workers = {
     // 'discord': discordWorker,
