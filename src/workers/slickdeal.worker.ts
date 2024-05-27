@@ -1,14 +1,14 @@
 import { Job } from 'bullmq';
 import { createHash } from 'node:crypto';
 import { parse } from 'rss-to-json';
-import { redis, redisQueue } from '../cache';
-import { logger } from '../logger';
+import { redis, redisQueue } from '../lib/cache';
+import { logger } from '../lib/logger';
 import {
-    TELEGRAM_CHAT,
+    TELEGRAM_CHAT_ID,
     TELEGRAM_THREAD_IDS,
     bot as telegramBot,
-} from '../telegraf';
-import { LocalWorker } from '../worker';
+} from '../lib/telegraf';
+import { LocalWorker } from '../lib/worker';
 
 const QUEUE_NAME = 'slickdeal';
 
@@ -49,7 +49,7 @@ export const worker: LocalWorker<any> = new LocalWorker<
 
         if ('link' in slickdealData) {
             telegramResponse = await telegramBot.telegram
-                .sendMessage(TELEGRAM_CHAT, slickdealData.link, {
+                .sendMessage(TELEGRAM_CHAT_ID, slickdealData.link, {
                     reply_parameters: {
                         message_id: TELEGRAM_THREAD_IDS[slickdealData.category],
                     },

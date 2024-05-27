@@ -1,7 +1,7 @@
 import { Client, Message, TextChannel } from 'discord.js-selfbot-v13';
+import { worker as discordWorker } from '../workers/discord.worker';
 import { logger } from './logger';
 import { isEmpty } from './utilities';
-import { worker as discordWorker } from './workers/discord.worker';
 
 export const DISCORD_TOKEN = process.env.DISCORD_TOKEN ?? '';
 

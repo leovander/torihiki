@@ -39,6 +39,15 @@ export interface TelegramThreadIds {
     [index: string]: number;
 }
 
+interface QueueStats {
+    prioritized: number;
+    active: number;
+    waiting: number;
+    completed: number;
+    delayed: number;
+    failed: number;
+}
+
 export interface RepeatableJob<DataType> {
     name: string;
     data: DataType;
@@ -90,6 +99,7 @@ export class LocalWorker<DataType> {
 
         this.queue.on('error', (err) => {
             logger.error(`${this.queueName} Queue Error: ${err}`);
+            // sendAdminError(`${this.queueName} Queue Error`, err.message);
         });
 
         this.queue.on('waiting', (job: Job<DataType>) => {
@@ -150,6 +160,10 @@ export class LocalWorker<DataType> {
 
         this.worker.on('error', (err) => {
             logger.error(`${this.queueName} - Could not process job: ${err}`);
+            // sendAdminError(
+            //     `${this.queueName} Queue Error`,
+            //     `Could not process job: ${err.message}`,
+            // );
         });
 
         this.worker.on(
@@ -165,41 +179,53 @@ export class LocalWorker<DataType> {
 
         this.worker.on(
             'completed',
-            (job: Job<DataType>, returnvalue: string) => {
+            async (job: Job<DataType>, returnvalue: string) => {
                 logger.info(
                     `Message Completed - ${job.queueName}:${job.id}:${returnvalue}`,
                 );
 
-                Promise.all([
-                    this.queue.getPrioritizedCount(),
-                    this.queue.getActiveCount(),
-                    this.queue.getWaitingCount(),
-                    this.queue.getCompletedCount(),
-                    this.queue.getDelayedCount(),
-                    this.queue.getFailedCount(),
-                ]).then((values) => {
-                    const [
-                        prioritized,
-                        active,
-                        waiting,
-                        completed,
-                        delayed,
-                        failed,
-                    ] = values;
-                    logger.info(
-                        JSON.stringify({
-                            queue: job.queueName,
-                            prioritized,
-                            active,
-                            waiting,
-                            completed,
-                            delayed,
-                            failed,
-                        }),
-                    );
-                });
+                const stats = await this.getCounts();
+                logger.info(
+                    JSON.stringify({
+                        queue: this.queueName,
+                        ...stats,
+                    }),
+                );
             },
         );
+    }
+
+    async getCounts(): Promise<QueueStats> {
+        let stats = {
+            prioritized: 0,
+            active: 0,
+            waiting: 0,
+            completed: 0,
+            delayed: 0,
+            failed: 0,
+        };
+
+        await Promise.all([
+            this.queue.getPrioritizedCount(),
+            this.queue.getActiveCount(),
+            this.queue.getWaitingCount(),
+            this.queue.getCompletedCount(),
+            this.queue.getDelayedCount(),
+            this.queue.getFailedCount(),
+        ]).then((values) => {
+            const [prioritized, active, waiting, completed, delayed, failed] =
+                values;
+            stats = {
+                prioritized,
+                active,
+                waiting,
+                completed,
+                delayed,
+                failed,
+            };
+        });
+
+        return stats;
     }
 
     async addJob(data: DataType): Promise<Job<DataType>> {
