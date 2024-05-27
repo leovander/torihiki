@@ -14,12 +14,13 @@ import type {
     Update,
     User,
 } from 'telegraf/types';
+import { Message } from 'typegram';
 import { audioFiles } from './audio';
 import { REDIS_CONNECTION, redis } from './cache';
 import { logger } from './logger';
 import { parseTelegramAdminIds, parseTelegramThreadIds } from './utilities';
-import { LocalWorker } from './worker';
-import { workers } from './workers';
+import { LocalWorker, LocalWorkerDataTypes } from './worker';
+import { Workers, workers } from './workers';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
 export const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
@@ -38,7 +39,7 @@ export type SessionData = {
     filters: string[];
     isSubscribed: boolean;
     joined: number;
-    originalMessage: any;
+    originalMessage?: Message.CommonMessage;
 };
 
 interface BotContext<U extends Update = Update> extends Context<U> {
@@ -106,11 +107,11 @@ async function updateChatMemberList(
         const members: Record<string, User> = JSON.parse(cachedMembers ?? '{}');
 
         if (action === 'add') {
-            if (!members.hasOwnProperty(user.id)) {
+            if (!Object.prototype.hasOwnProperty.call(members, user.id)) {
                 members[user.id] = user;
             }
         } else {
-            if (members.hasOwnProperty(user.id)) {
+            if (Object.prototype.hasOwnProperty.call(members, user.id)) {
                 delete members[user.id];
             }
         }
@@ -125,7 +126,7 @@ async function updateChatMemberList(
 export const setTelegramDetails = async (): Promise<void> => {
     const chatAdmins =
         await bot.telegram.getChatAdministrators(TELEGRAM_CHAT_ID);
-    let admins: Record<number, any> = {};
+    const admins: Record<number, User> = {};
     chatAdmins.forEach((admin: ChatMemberOwner | ChatMemberAdministrator) => {
         admins[admin.user.id] = admin.user;
     });
@@ -133,14 +134,14 @@ export const setTelegramDetails = async (): Promise<void> => {
     await redis.set(`${TELEGRAM_NAMESPACE}:admins`, JSON.stringify(admins));
 };
 
-export const generateDynamicActions = (workers: any) => {
+export const generateDynamicActions = (workers: Workers) => {
     if (!workers || typeof workers !== 'object') {
         console.error('Invalid workers object');
         return;
     }
 
     Object.values(workers).forEach((worker) => {
-        const tmpWorker = worker as LocalWorker<any>;
+        const tmpWorker = worker as LocalWorker<LocalWorkerDataTypes>;
 
         bot.action(`btn_${tmpWorker.queueName}`, async (ctx) => {
             if (!isAdmin(ctx.from.id)) {
@@ -148,7 +149,7 @@ export const generateDynamicActions = (workers: any) => {
             }
 
             const stats = await tmpWorker.getCounts();
-            let buf: FmtString[] = [];
+            const buf: FmtString[] = [];
             Object.entries(stats).forEach(([key, value]) => {
                 buf.push(join([bold(key), `: ${value}\n`]));
             });
@@ -189,7 +190,8 @@ bot.hears(/^\/admin (\w+)\s*(.*)$/, async (ctx) => {
         return;
     }
 
-    const [, subCommand, options] = ctx.match;
+    // subCommand options available as next array value
+    const [, subCommand] = ctx.match;
 
     switch (subCommand) {
         case 'queues':
@@ -216,7 +218,7 @@ bot.hears(/^\/admin (\w+)\s*(.*)$/, async (ctx) => {
 });
 
 bot.on(message('new_chat_members'), async (ctx) => {
-    let messageBuilder = [];
+    const messageBuilder = [];
 
     ctx.update.message.new_chat_members.forEach((new_chat_member: User) => {
         messageBuilder.push(

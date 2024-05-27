@@ -1,18 +1,12 @@
-import { Axios } from 'axios';
 import { client as discordBot } from './discord';
 import { logger } from './logger';
 import { server } from './server';
 import { bot as telegramBot } from './telegraf';
-import { LocalWorker, TelegramThreadIds } from './worker';
+import { LocalWorker, LocalWorkerDataTypes, TelegramThreadIds } from './worker';
 import { workers } from './workers';
 
 const THREAD_DELIMITER = ';';
 const OBJECT_DELIMITER = ':';
-
-const PUSHOVER_APP_TOKEN = process.env.PUSHOVER_APP_TOKEN;
-const PUSHOVER_USER_TOKEN = process.env.PUSHOVER_USER_TOKEN;
-
-const axios: Axios = require('axios');
 
 function isEmpty(input: string): boolean {
     return !input || input === '';
@@ -23,7 +17,7 @@ function parseTelegramThreadIds(input: string): TelegramThreadIds {
         return {};
     }
 
-    let threadIds: TelegramThreadIds = {};
+    const threadIds: TelegramThreadIds = {};
 
     input.split(THREAD_DELIMITER).forEach((thread) => {
         const [name, id] = thread.split(OBJECT_DELIMITER);
@@ -40,12 +34,16 @@ function parseTelegramAdminIds(input: string): number[] {
         return [];
     }
 
-    let threadIds: number[] = input.split(OBJECT_DELIMITER).map((admin) => {
+    const threadIds: number[] = input.split(OBJECT_DELIMITER).map((admin) => {
         return parseInt(admin);
     });
 
     return threadIds;
 }
+
+/*
+const PUSHOVER_APP_TOKEN = process.env.PUSHOVER_APP_TOKEN;
+const PUSHOVER_USER_TOKEN = process.env.PUSHOVER_USER_TOKEN;
 
 async function sendAdminError(title: string, message: string): Promise<void> {
     if (PUSHOVER_APP_TOKEN && PUSHOVER_USER_TOKEN) {
@@ -66,27 +64,30 @@ async function sendAdminError(title: string, message: string): Promise<void> {
                 }
             });
     }
-}
+} */
 
-// Enable graceful stop
 async function gracefulShutdown(signal: string) {
-    logger.info(`Received ${signal}, closing HTTP Server`);
     server.close();
+    logger.info(`Received ${signal}, closed HTTP Server`);
 
-    logger.info(`Received ${signal}, destroying Discord Bot`);
     discordBot.destroy();
+    logger.info(`Received ${signal}, destroyed Discord Bot`);
 
-    logger.info(`Received ${signal}, closing Telegram Bot`);
-    await telegramBot.stop(signal);
+    telegramBot.stop(signal);
+    logger.info(`Received ${signal}, stopped Telegram Bot`);
 
     await Promise.all(
-        Object.values(workers).map((worker: LocalWorker<any>) => {
-            logger.info(
-                `Received ${signal}, closing Worker (${worker.queueName})`,
-            );
-            return worker.worker.close();
-        }),
+        Object.values(workers).map(
+            (worker: LocalWorker<LocalWorkerDataTypes>) => {
+                logger.info(
+                    `Received ${signal}, closing Worker (${worker.queueName})`,
+                );
+                return worker.worker.close();
+            },
+        ),
     );
+
+    process.exit(0);
 }
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));

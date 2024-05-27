@@ -13,15 +13,16 @@ import { LocalWorker } from '../lib/worker';
 const QUEUE_NAME = 'slickdeal';
 
 export type SLICKDEAL_MESSAGE = {
-    id: string;
-    title: string;
-    link: string;
-    description: string;
-    content_encoded: string;
-    author: string;
-    published: number;
-    created: number;
-    category: string;
+    id?: string;
+    title?: string;
+    link?: string;
+    description?: string;
+    content_encoded?: string;
+    author?: string;
+    published?: number;
+    created?: number;
+    category?: string;
+    feeds?: SLICKDEAL_CATEGORY[];
 };
 
 type SLICKDEAL_CATEGORY = {
@@ -29,25 +30,17 @@ type SLICKDEAL_CATEGORY = {
     url: string;
 };
 
-type SLICKDEAL_REPEATABLE = {
-    categories: SLICKDEAL_CATEGORY[];
-};
-
-export const worker: LocalWorker<any> = new LocalWorker<
-    SLICKDEAL_MESSAGE | SLICKDEAL_REPEATABLE
->(
+export const worker = new LocalWorker<SLICKDEAL_MESSAGE>(
     QUEUE_NAME,
     {
         connection: redisQueue,
     },
-    async (
-        job: Job<SLICKDEAL_MESSAGE | SLICKDEAL_REPEATABLE>,
-    ): Promise<string> => {
+    async (job: Job<SLICKDEAL_MESSAGE>): Promise<string> => {
         const slickdealData = job.data;
 
         let telegramResponse;
 
-        if ('link' in slickdealData) {
+        if (slickdealData.link && slickdealData.category) {
             telegramResponse = await telegramBot.telegram
                 .sendMessage(TELEGRAM_CHAT_ID, slickdealData.link, {
                     reply_parameters: {
@@ -62,12 +55,12 @@ export const worker: LocalWorker<any> = new LocalWorker<
 
             return `telegram:${telegramResponse?.message_id}`;
         } else {
-            if ('categories' in job.data) {
+            if (slickdealData.feeds) {
                 logger.info(
-                    `Fetching Slickdeals: ${job.data.categories.map((cat) => cat.name)}`,
+                    `Fetching Slickdeals: ${slickdealData.feeds.map((cat) => cat.name)}`,
                 );
 
-                for await (const category of job.data.categories) {
+                for await (const category of slickdealData.feeds) {
                     const feed = await parse(category.url);
                     if (feed && feed.items.length > 0) {
                         for await (const item of feed.items) {
@@ -104,18 +97,16 @@ export const worker: LocalWorker<any> = new LocalWorker<
                             if (isCached === null) {
                                 await worker
                                     .addJob(newItem)
-                                    .then(
-                                        async (job: Job<SLICKDEAL_MESSAGE>) => {
-                                            if (job.id) {
-                                                await redis.set(
-                                                    `slickdeals:${newItem.id}`,
-                                                    JSON.stringify(newItem),
-                                                    'EX',
-                                                    60 * 60 * 24 * 7,
-                                                );
-                                            }
-                                        },
-                                    );
+                                    .then(async (job: Job) => {
+                                        if (job.id) {
+                                            await redis.set(
+                                                `slickdeals:${newItem.id}`,
+                                                JSON.stringify(newItem),
+                                                'EX',
+                                                60 * 60 * 24 * 7,
+                                            );
+                                        }
+                                    });
                             }
                         }
                     }
@@ -128,7 +119,7 @@ export const worker: LocalWorker<any> = new LocalWorker<
     [
         {
             data: {
-                categories: [
+                feeds: [
                     {
                         name: 'slickdeals-frontpage',
                         url: 'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1',
