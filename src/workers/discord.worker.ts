@@ -5,7 +5,7 @@ import { LocalWorker } from '../lib/worker';
 
 const QUEUE_NAME = 'discord';
 
-type DISCORD_MESSAGE = {
+export type DISCORD_MESSAGE = {
     author: string;
     guildName: string;
     guildId: string;
@@ -22,9 +22,7 @@ export const worker = new LocalWorker<DISCORD_MESSAGE>(
     async (job: Job<DISCORD_MESSAGE>): Promise<string> => {
         const discordData = job.data;
 
-        let telegramResponse;
-
-        telegramResponse = await telegramBot.telegram
+        const telegramResponse = await telegramBot.telegram
             .sendMessage(TELEGRAM_CHAT_ID, discordData.content)
             .catch(async (err: Error) => {
                 if (worker.rateLimiter) {

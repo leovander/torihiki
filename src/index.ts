@@ -29,7 +29,7 @@ async function main() {
         })
         .catch(async (error) => {
             logger.error(`Telegram Bot Error: ${error}`);
-            // process.exit(1);
+            process.exit(1);
         });
 }
 

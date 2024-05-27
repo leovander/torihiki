@@ -6,10 +6,13 @@
     "start": "node ./dist/index.js",
     "tstart": "npx ts-node ./src/index.ts",
     "build": "tsc",
-    "watch": "nodemon ./src/index.ts",
-    "watch-debug": "export DEBUG='telegraf:*' && nodemon ./src/index.ts",
+    "watch": "concurrently \"npm:watch-*\"",
+    "watch-build": "tsc -w",
+    "watch-nodemon": "nodemon ./dist/index.js",
+    "nodemon-debug": "export DEBUG='telegraf:*' && nodemon ./src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prettier": "npx prettier . --write",
+    "lint": "npx eslint",
     "prepare": "husky"
   },
   "author": "",
@@ -31,7 +34,14 @@
     "winston": "^3.13.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.3.0",
+    "@types/express": "^4.17.21",
     "@types/node": "^20.12.11",
+    "@types/redis-info": "^3.0.3",
+    "concurrently": "^8.2.2",
+    "eslint": "^9.3.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.3.0",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.4",
     "nodemon": "^3.1.0",
@@ -39,10 +49,14 @@
     "ts-node": "^10.9.2",
     "tsc-watch": "^6.2.0",
     "typegram": "^5.2.0",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.10.0"
   },
   "lint-staged": {
-    "*.ts": "prettier --write --ignore-unknown"
+    "*.ts": [
+      "prettier --write --ignore-unknown",
+      "eslint"
+    ]
   },
   "packageManager": "pnpm@8.6.0+sha1.71f9126a20cd3d00fa47c188f956918858180e54"
 }
