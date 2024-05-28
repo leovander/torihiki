@@ -1,5 +1,5 @@
 {
-  "name": "price-is-right-bot",
+  "name": "torihiki",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -15,9 +15,9 @@
     "lint": "npx eslint",
     "prepare": "husky"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "author": "leovander",
+  "license": "AGPL-3.0-only",
+  "description": "Torihiki (とりひき), a Telegram and Discord-Self bot, that forwards Discord messages to Telegram.",
   "dependencies": {
     "@bull-board/api": "^5.18.3",
     "@bull-board/express": "^5.18.3",

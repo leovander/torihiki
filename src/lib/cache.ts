@@ -1,3 +1,21 @@
+/*
+*	Torihiki - Message Forwarder and Notifier
+*	Copyright (C) 2024 Israel Torres (https://github.com/leovander)
+
+*	This program is free software: you can redistribute it and/or modify
+*	it under the terms of the GNU Affero General Public License as published
+*	by the Free Software Foundation, either version 3 of the License, or
+*	(at your option) any later version.
+*
+*	This program is distributed in the hope that it will be useful,
+*	but WITHOUT ANY WARRANTY; without even the implied warranty of
+*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+*	GNU Affero General Public License for more details.
+*
+*	You should have received a copy of the GNU Affero General Public License
+*	along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
+
 import { Redis } from 'ioredis';
 import { logger } from './logger';
 
@@ -6,15 +24,17 @@ const REDIS_PORT = process.env.REDIS_PORT
     ? parseInt(process.env.REDIS_PORT)
     : 6379;
 export const REDIS_CONNECTION = `redis://${REDIS_HOST}:${REDIS_PORT}`;
-const QUEUE_DB = process.env.QUEUE_DB ? parseInt(process.env.QUEUE_DB) : 1;
-const DEFAULT_DB = process.env.DEFAULT_DB
-    ? parseInt(process.env.DEFAULT_DB)
+const REDIS_QUEUE_DB = process.env.REDIS_QUEUE_DB
+    ? parseInt(process.env.REDIS_QUEUE_DB)
+    : 1;
+const REDIS_DEFAULT_DB = process.env.REDIS_DEFAULT_DB
+    ? parseInt(process.env.REDIS_DEFAULT_DB)
     : 0;
 
 export const redisQueue = new Redis({
     port: REDIS_PORT,
     host: REDIS_HOST,
-    db: QUEUE_DB,
+    db: REDIS_QUEUE_DB,
     maxRetriesPerRequest: null,
 });
 
@@ -29,7 +49,7 @@ redisQueue.on('error', (error) => {
 export const redis = new Redis({
     port: REDIS_PORT,
     host: REDIS_HOST,
-    db: DEFAULT_DB,
+    db: REDIS_DEFAULT_DB,
 });
 
 redis.on('ready', () => {
