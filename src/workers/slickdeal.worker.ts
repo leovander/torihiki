@@ -19,10 +19,13 @@
 import { Job } from 'bullmq';
 import { createHash } from 'node:crypto';
 import { parse } from 'rss-to-json';
+import { bold, join } from 'telegraf/format';
+import { Nestable } from 'telegraf/typings/core/helpers/formatting';
 import { redis, redisQueue } from '../lib/cache';
 import { logger } from '../lib/logger';
 import {
     TELEGRAM_CHAT_ID,
+    TELEGRAM_NAMESPACE,
     TELEGRAM_THREAD_IDS,
     bot as telegramBot,
 } from '../lib/telegraf';
@@ -48,6 +51,35 @@ type SLICKDEAL_CATEGORY = {
     url: string;
 };
 
+async function containsWords(
+    message: SLICKDEAL_MESSAGE,
+): Promise<{ matched: string[]; hasMatch: boolean }> {
+    const cachedFilters = await redis.get(`${TELEGRAM_NAMESPACE}:filters`);
+    const filters: string[] = JSON.parse(cachedFilters || '[]');
+
+    const { title, description, content_encoded } = message;
+    const search = (text?: string) => {
+        const matchedWords = filters.filter((word) => text?.includes(word));
+        return { matched: matchedWords, hasMatch: matchedWords.length > 0 };
+    };
+
+    const titleSearch = search(title?.toLowerCase());
+    const descriptionSearch = search(description?.toLowerCase());
+    const contentSearch = search(content_encoded?.toLowerCase());
+
+    return {
+        matched: [
+            ...titleSearch.matched,
+            ...descriptionSearch.matched,
+            ...contentSearch.matched,
+        ],
+        hasMatch:
+            titleSearch.hasMatch ||
+            descriptionSearch.hasMatch ||
+            contentSearch.hasMatch,
+    };
+}
+
 export const worker = new LocalWorker<SLICKDEAL_MESSAGE>(
     QUEUE_NAME,
     {
@@ -59,8 +91,16 @@ export const worker = new LocalWorker<SLICKDEAL_MESSAGE>(
         let telegramResponse;
 
         if (slickdealData.link && slickdealData.category) {
+            let message: Nestable<string>[] = [];
+
+            if (slickdealData.description) {
+                message = [bold(slickdealData.description), '\n\n'];
+            }
+
+            message.push(slickdealData.link);
+
             telegramResponse = await telegramBot.telegram
-                .sendMessage(TELEGRAM_CHAT_ID, slickdealData.link, {
+                .sendMessage(TELEGRAM_CHAT_ID, join(message), {
                     reply_parameters: {
                         message_id: TELEGRAM_THREAD_IDS[slickdealData.category],
                     },
@@ -70,6 +110,20 @@ export const worker = new LocalWorker<SLICKDEAL_MESSAGE>(
                         await worker.rateLimiter(err, job);
                     }
                 });
+
+            const { matched, hasMatch } = await containsWords(slickdealData);
+
+            if (hasMatch) {
+                message.push(`\n\nFiltered: ${matched.join(', ')}`);
+
+                await telegramBot.telegram
+                    .sendMessage(TELEGRAM_CHAT_ID, join(message))
+                    .catch(async (err: Error) => {
+                        if (worker.rateLimiter) {
+                            await worker.rateLimiter(err, job);
+                        }
+                    });
+            }
 
             return `telegram:${telegramResponse?.message_id}`;
         } else {
