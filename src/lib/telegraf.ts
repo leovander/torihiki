@@ -15,7 +15,6 @@ import type {
     User,
 } from 'telegraf/types';
 import { Message } from 'typegram';
-import { audioFiles } from './audio';
 import { REDIS_CONNECTION, redis } from './cache';
 import { logger } from './logger';
 import { parseTelegramAdminIds, parseTelegramThreadIds } from './utilities';
@@ -24,8 +23,8 @@ import { Workers, workers } from './workers';
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || '';
 export const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '';
-const TELEGRAM_SESSION_DB = process.env.TELEGRAM_SESSION_DB
-    ? parseInt(process.env.TELEGRAM_SESSION_DB)
+const REDIS_TELEGRAM_SESSION_DB = process.env.REDIS_TELEGRAM_SESSION_DB
+    ? parseInt(process.env.REDIS_TELEGRAM_SESSION_DB)
     : 0;
 export const TELEGRAM_THREAD_IDS = process.env.TELEGRAM_THREAD_IDS
     ? parseTelegramThreadIds(process.env.TELEGRAM_THREAD_IDS)
@@ -49,7 +48,7 @@ interface BotContext<U extends Update = Update> extends Context<U> {
 const redisStore = Redis<SessionData>({
     url: REDIS_CONNECTION,
     config: {
-        database: TELEGRAM_SESSION_DB,
+        database: REDIS_TELEGRAM_SESSION_DB,
     },
 });
 
@@ -228,38 +227,22 @@ bot.on(message('new_chat_members'), async (ctx) => {
         updateChatMemberList(new_chat_member);
     });
 
-    messageBuilder.push("come on down!\nYou're the next contestant on, ");
-    messageBuilder.push(bold(italic('The Price is Right!')));
-
-    await ctx.replyWithVoice(
-        {
-            source: audioFiles.categories['salutations']['discord_join']
-                .fullPath,
+    messageBuilder.push('welcome to the club!');
+    await ctx.reply(join(messageBuilder), {
+        reply_parameters: {
+            message_id: ctx.update.message.message_id,
         },
-        {
-            caption: join(messageBuilder),
-            reply_parameters: {
-                message_id: ctx.update.message.message_id,
-            },
-        },
-    );
+    });
 });
 
 bot.on(message('left_chat_member'), async (ctx) => {
     await updateChatMemberList(ctx.message.from);
 
-    await ctx.replyWithVoice(
-        {
-            source: audioFiles.categories['salutations']['discord_leave']
-                .fullPath,
+    await ctx.reply(italic('Psssh… Nothin Personnel… Kid…'), {
+        reply_parameters: {
+            message_id: ctx.update.message.message_id,
         },
-        {
-            caption: italic('Psssh… Nothin Personnel… Kid…'),
-            reply_parameters: {
-                message_id: ctx.update.message.message_id,
-            },
-        },
-    );
+    });
 });
 
 // Attempt to catch all middleware errors to prevent app exit
