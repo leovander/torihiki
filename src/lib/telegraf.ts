@@ -32,7 +32,7 @@ export const TELEGRAM_THREAD_IDS = process.env.TELEGRAM_THREAD_IDS
 export const TELEGRAM_ADMIN_IDS = process.env.TELEGRAM_ADMIN_IDS
     ? parseTelegramAdminIds(process.env.TELEGRAM_ADMIN_IDS)
     : [];
-const TELEGRAM_NAMESPACE = 'telegram:details';
+export const TELEGRAM_NAMESPACE = 'telegram:details';
 
 export type SessionData = {
     filters: string[];
@@ -189,11 +189,10 @@ bot.hears(/^\/admin (\w+)\s*(.*)$/, async (ctx) => {
         return;
     }
 
-    // subCommand options available as next array value
-    const [, subCommand] = ctx.match;
+    const [, subCommand, options] = ctx.match;
 
     switch (subCommand) {
-        case 'queues':
+        case 'queues': {
             if (ctx.session) {
                 if (workers && typeof workers === 'object') {
                     const queuesKeyboard = Markup.inlineKeyboard(
@@ -211,8 +210,48 @@ bot.hears(/^\/admin (\w+)\s*(.*)$/, async (ctx) => {
                 }
             }
             break;
-        default:
+        }
+        case 'filters': {
+            const cachedFilters = await redis.get(
+                `${TELEGRAM_NAMESPACE}:filters`,
+            );
+            let filters = JSON.parse(cachedFilters || '[]');
+            let message = '';
+
+            if (options) {
+                const tokens = options
+                    .toLowerCase()
+                    .split(';')
+                    .filter((token) => {
+                        return !filters.includes(token);
+                    });
+
+                if (tokens.length > 0) {
+                    filters = [...filters, ...tokens];
+
+                    await redis.set(
+                        `${TELEGRAM_NAMESPACE}:filters`,
+                        JSON.stringify(filters),
+                    );
+
+                    message = `Added the following tokens: ${tokens.join(', ')}`;
+                    logger.info(message);
+                    message = `${message}\n\n`;
+                }
+            }
+
+            if (filters.length > 0) {
+                message = `${message}Active Filters:\n${filters.join('\n')}`;
+            } else {
+                message = 'No Active Filters';
+            }
+
+            await ctx.reply(message);
+            break;
+        }
+        default: {
             ctx.reply('Invalid /admin command.');
+        }
     }
 });
 
