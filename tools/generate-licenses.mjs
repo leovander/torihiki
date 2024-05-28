@@ -45,7 +45,7 @@ init({ start: '.', production: true }, (err, packages) => {
 
   const output = [
     '# Third-Party Licenses',
-    'This project includes the following third-party packages in the production build:',
+    'This project includes the following third-party packages in its build:',
   ];
 
   for (const [license, packages] of licensesMap.entries()) {

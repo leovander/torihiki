@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-This project includes the following third-party packages in the production build:
+This project includes the following third-party packages in its build:
 
 ## License: MIT
 
