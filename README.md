@@ -48,7 +48,16 @@ To get started with the Torihiki, follow these steps:
 
    > See more details on how to get tokens and ids, and set other options: [Environment Variables](#environment-variables)
 
-4. Start the bot:
+4. Build the bot:
+
+   ```sh
+   pnpm build
+
+   # If working on the project, to watch for changes and run from ./dist
+   pnpm watch
+   ```
+
+5. Start the bot:
    ```sh
    pnpm start
    ```
@@ -155,7 +164,7 @@ Contributions are welcome! Here's how you can contribute to this project:
 
 ## License
 
-This project is licensed under [AGPL-3.0-only](LICENSE.md).
+This project is licensed under [AGPL-3.0-only](LICENSE).
 
 ## Contact
 
