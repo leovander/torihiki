@@ -13,7 +13,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "prettier": "npx prettier . --write",
     "lint": "npx eslint",
-    "prepare": "husky"
+    "prepare": "husky",
+    "generate-licenses": "PACKAGE_NAME=torihiki node tools/generate-licenses.mjs"
   },
   "author": "leovander",
   "license": "AGPL-3.0-only",
@@ -43,6 +44,7 @@
     "eslint-config-prettier": "^9.1.0",
     "globals": "^15.3.0",
     "husky": "^9.0.11",
+    "license-checker": "^25.0.1",
     "lint-staged": "^15.2.4",
     "nodemon": "^3.1.0",
     "prettier": "^3.2.5",
