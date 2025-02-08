@@ -1,23 +1,16 @@
 import { Redis } from '@telegraf/session/redis';
-import {
-    Markup,
-    Telegraf,
-    TelegramError,
-    session,
-    type Context,
-} from 'telegraf';
+import { Markup, Telegraf, TelegramError, session } from 'telegraf';
 import { message } from 'telegraf/filters';
 import { FmtString, bold, italic, join, mention } from 'telegraf/format';
 import type {
     ChatMemberAdministrator,
     ChatMemberOwner,
-    Update,
     User,
 } from 'telegraf/types';
-import { Message } from 'typegram';
+import { BotContext, ChatMemberAction, SessionData } from '../types/telegraf';
 import { REDIS_CONNECTION, redis } from './cache';
 import { logger } from './logger';
-import { parseTelegramAdminIds, parseTelegramThreadIds } from './utilities';
+import { parseChatIds, parseTelegramAdminIds } from './utilities';
 import { LocalWorker, LocalWorkerDataTypes } from './worker';
 import { Workers, workers } from './workers';
 
@@ -27,23 +20,12 @@ const REDIS_TELEGRAM_SESSION_DB = process.env.REDIS_TELEGRAM_SESSION_DB
     ? parseInt(process.env.REDIS_TELEGRAM_SESSION_DB)
     : 0;
 export const TELEGRAM_THREAD_IDS = process.env.TELEGRAM_THREAD_IDS
-    ? parseTelegramThreadIds(process.env.TELEGRAM_THREAD_IDS)
+    ? parseChatIds(process.env.TELEGRAM_THREAD_IDS)
     : {};
 export const TELEGRAM_ADMIN_IDS = process.env.TELEGRAM_ADMIN_IDS
     ? parseTelegramAdminIds(process.env.TELEGRAM_ADMIN_IDS)
     : [];
 export const TELEGRAM_NAMESPACE = 'telegram:details';
-
-export type SessionData = {
-    filters: string[];
-    isSubscribed: boolean;
-    joined: number;
-    originalMessage?: Message.CommonMessage;
-};
-
-interface BotContext<U extends Update = Update> extends Context<U> {
-    session?: SessionData;
-}
 
 const redisStore = Redis<SessionData>({
     url: REDIS_CONNECTION,
@@ -94,8 +76,6 @@ bot.use(async (ctx, next) => {
         logger.warn('Filtered message');
     }
 });
-
-type ChatMemberAction = 'add' | 'remove';
 
 async function updateChatMemberList(
     user: User | undefined,

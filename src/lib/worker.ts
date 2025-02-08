@@ -1,21 +1,3 @@
-/*
-*	Torihiki - Message Forwarder and Notifier
-*	Copyright (C) 2024 Israel Torres (https://github.com/leovander)
-
-*	This program is free software: you can redistribute it and/or modify
-*	it under the terms of the GNU Affero General Public License as published
-*	by the Free Software Foundation, either version 3 of the License, or
-*	(at your option) any later version.
-*
-*	This program is distributed in the hope that it will be useful,
-*	but WITHOUT ANY WARRANTY; without even the implied warranty of
-*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-*	GNU Affero General Public License for more details.
-*
-*	You should have received a copy of the GNU Affero General Public License
-*	along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
-
 import {
     Job,
     JobsOptions,
@@ -25,8 +7,7 @@ import {
     Worker,
 } from 'bullmq';
 import { TelegramError } from 'telegraf';
-import { DISCORD_MESSAGE } from '../workers/discord.worker';
-import { SLICKDEAL_MESSAGE } from '../workers/slickdeal.worker';
+import { DISCORD_MESSAGE, SLICKDEAL_MESSAGE } from '../types/message';
 import { logger } from './logger';
 
 const DEFAULT_QUEUE_REMOVE_ON_COMPLETE_AGE = process.env.REMOVE_ON_COMPLETE_AGE
@@ -54,10 +35,6 @@ const QUEUE_LIMIT_DURATION = process.env.QUEUE_LIMIT_DURATION
 const BACKOFF_TYPE = process.env.BACKOFF_TYPE
     ? process.env.BACKOFF_TYPE
     : 'exponential';
-
-export interface TelegramThreadIds {
-    [index: string]: number;
-}
 
 interface QueueStats {
     prioritized: number;

@@ -1,21 +1,3 @@
-/*
-*	Torihiki - Message Forwarder and Notifier
-*	Copyright (C) 2024 Israel Torres (https://github.com/leovander)
-
-*	This program is free software: you can redistribute it and/or modify
-*	it under the terms of the GNU Affero General Public License as published
-*	by the Free Software Foundation, either version 3 of the License, or
-*	(at your option) any later version.
-*
-*	This program is distributed in the hope that it will be useful,
-*	but WITHOUT ANY WARRANTY; without even the implied warranty of
-*	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-*	GNU Affero General Public License for more details.
-*
-*	You should have received a copy of the GNU Affero General Public License
-*	along with this program. If not, see <https://www.gnu.org/licenses/>.
-*/
-
 import { Job } from 'bullmq';
 import { createHash } from 'node:crypto';
 import { parse } from 'rss-to-json';
@@ -30,26 +12,9 @@ import {
     bot as telegramBot,
 } from '../lib/telegraf';
 import { LocalWorker } from '../lib/worker';
+import { SLICKDEAL_MESSAGE } from '../types/message';
 
 const QUEUE_NAME = 'slickdeal';
-
-export type SLICKDEAL_MESSAGE = {
-    id?: string;
-    title?: string;
-    link?: string;
-    description?: string;
-    content_encoded?: string;
-    author?: string;
-    published?: number;
-    created?: number;
-    category?: string;
-    feeds?: SLICKDEAL_CATEGORY[];
-};
-
-type SLICKDEAL_CATEGORY = {
-    name: string;
-    url: string;
-};
 
 async function containsWords(
     message: SLICKDEAL_MESSAGE,
@@ -67,12 +32,14 @@ async function containsWords(
     const descriptionSearch = search(description?.toLowerCase());
     const contentSearch = search(content_encoded?.toLowerCase());
 
+    const matchedSet = new Set([
+        ...titleSearch.matched,
+        ...descriptionSearch.matched,
+        ...contentSearch.matched,
+    ]);
+
     return {
-        matched: [
-            ...titleSearch.matched,
-            ...descriptionSearch.matched,
-            ...contentSearch.matched,
-        ],
+        matched: Array.from(matchedSet),
         hasMatch:
             titleSearch.hasMatch ||
             descriptionSearch.hasMatch ||

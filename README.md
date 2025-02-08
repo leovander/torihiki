@@ -116,6 +116,8 @@ Once the bot is running, admins can interact with it on Telegram using the follo
 > :warning: Disclaimer: It is against [Discord's TOS](https://discord.com/terms) to use the [discord.js-selfbot](https://github.com/aiko-chan-ai/discord.js-selfbot-v13) package this project depends on. Use this at your own risk.
 
 - `DISCORD_TOKEN`: Your Discord User Token (https://discordjs-self-v13.netlify.app/#/docs/docs/main/general/welcome)
+- `DISCORD_GUILD_ID`: Guild Id for Discord Server to filter by
+- `DISCORD_CHANNEL_IDS`: Delimited Discord Channel Ids & Channel Names e.g. `channel-name1:channel-id1;channel-name2:channel-id2`
 
 ### BullMQ
 
