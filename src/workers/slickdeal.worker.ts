@@ -24,7 +24,11 @@ async function containsWords(
 
     const { title, description, content_encoded } = message;
     const search = (text?: string) => {
-        const matchedWords = filters.filter((word) => text?.includes(word));
+        const matchedWords = filters.filter((word) => {
+            if (!text) return false;
+            const regex = new RegExp(`\\b${word}\\b`, 'i');
+            return regex.test(text);
+        });
         return { matched: matchedWords, hasMatch: matchedWords.length > 0 };
     };
 
