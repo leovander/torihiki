@@ -329,7 +329,7 @@ export const worker = new LocalWorker<OUTLOOK_MESSAGE>(
             name: 'outlook-poll',
             options: {
                 repeat: {
-                    pattern: '0 */15 * * * *',
+                    pattern: '0 */5 * * * *',
                 },
             },
         },

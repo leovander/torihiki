@@ -1,21 +1,55 @@
 import {
     PublicClientApplication,
     DeviceCodeRequest,
-    AccountInfo,
-    AuthenticationResult,
+    ICachePlugin,
+    TokenCacheContext,
+    Configuration,
 } from '@azure/msal-node';
 import { redis } from './cache';
 import { logger } from './logger';
 
 const OUTLOOK_CLIENT_ID = process.env.OUTLOOK_CLIENT_ID ?? '';
 const OUTLOOK_EMAIL = process.env.OUTLOOK_EMAIL ?? '';
-const REDIS_TOKEN_KEY = `outlook:oauth:${OUTLOOK_EMAIL}`;
+const REDIS_CACHE_KEY = `outlook:msal-cache:${OUTLOOK_EMAIL}`;
+
+// Redis-based cache plugin for MSAL token persistence
+const redisCachePlugin: ICachePlugin = {
+    beforeCacheAccess: async (
+        cacheContext: TokenCacheContext,
+    ): Promise<void> => {
+        try {
+            const cachedData = await redis.get(REDIS_CACHE_KEY);
+            if (cachedData) {
+                cacheContext.tokenCache.deserialize(cachedData);
+                logger.debug('MSAL cache loaded from Redis');
+            }
+        } catch (error) {
+            logger.error(`Failed to load MSAL cache from Redis: ${error}`);
+        }
+    },
+    afterCacheAccess: async (
+        cacheContext: TokenCacheContext,
+    ): Promise<void> => {
+        if (cacheContext.cacheHasChanged) {
+            try {
+                const serializedCache = cacheContext.tokenCache.serialize();
+                await redis.set(REDIS_CACHE_KEY, serializedCache);
+                logger.debug('MSAL cache saved to Redis');
+            } catch (error) {
+                logger.error(`Failed to save MSAL cache to Redis: ${error}`);
+            }
+        }
+    },
+};
 
 // Microsoft's common endpoint for personal accounts
-const msalConfig = {
+const msalConfig: Configuration = {
     auth: {
         clientId: OUTLOOK_CLIENT_ID,
         authority: 'https://login.microsoftonline.com/consumers',
+    },
+    cache: {
+        cachePlugin: redisCachePlugin,
     },
 };
 
@@ -27,71 +61,38 @@ const scopes = [
     'offline_access',
 ];
 
-interface StoredToken {
-    accessToken: string;
-    refreshToken: string;
-    expiresOn: number;
-    account: AccountInfo;
-}
-
-async function getStoredToken(): Promise<StoredToken | null> {
-    const stored = await redis.get(REDIS_TOKEN_KEY);
-    if (!stored) return null;
-    try {
-        return JSON.parse(stored) as StoredToken;
-    } catch {
-        return null;
-    }
-}
-
-async function storeToken(result: AuthenticationResult): Promise<void> {
-    if (!result.account) {
-        throw new Error('No account in authentication result');
-    }
-
-    const token: StoredToken = {
-        accessToken: result.accessToken,
-        refreshToken: (result as { refreshToken?: string }).refreshToken || '',
-        expiresOn: result.expiresOn?.getTime() || Date.now() + 3600000,
-        account: result.account,
-    };
-
-    // Store with no expiry - we'll handle refresh ourselves
-    await redis.set(REDIS_TOKEN_KEY, JSON.stringify(token));
-    logger.info('OAuth token stored in Redis');
-}
-
 export async function getAccessToken(): Promise<string> {
-    const stored = await getStoredToken();
+    // Get all accounts from MSAL's cache (loaded from Redis via plugin)
+    const accounts = await pca.getTokenCache().getAllAccounts();
 
-    if (!stored) {
+    if (accounts.length === 0) {
         throw new Error(
             'No OAuth token found. Run the app with --outlook-auth to authenticate.',
         );
     }
 
-    // Check if token is expired (with 5 min buffer)
-    const isExpired = Date.now() > stored.expiresOn - 300000;
+    // Use the first account (or find specific one by email if needed)
+    const account =
+        accounts.find(
+            (acc) => acc.username.toLowerCase() === OUTLOOK_EMAIL.toLowerCase(),
+        ) || accounts[0];
 
-    if (!isExpired) {
-        return stored.accessToken;
-    }
-
-    // Token expired, try to refresh using silent acquisition
-    logger.info('Access token expired, refreshing...');
+    logger.debug(`Using account: ${account.username}`);
 
     try {
-        const silentRequest = {
-            account: stored.account,
+        // acquireTokenSilent will automatically:
+        // - Return cached token if still valid
+        // - Use refresh token to get new access token if expired
+        // - Cache plugin will persist any changes to Redis
+        const result = await pca.acquireTokenSilent({
+            account,
             scopes,
-            forceRefresh: true,
-        };
+        });
 
-        const result = await pca.acquireTokenSilent(silentRequest);
-        await storeToken(result);
+        logger.debug('Access token acquired successfully');
         return result.accessToken;
     } catch (error) {
-        logger.error(`Failed to refresh token: ${error}`);
+        logger.error(`Failed to acquire token silently: ${error}`);
         throw new Error(
             'Failed to refresh OAuth token. Run the app with --outlook-auth to re-authenticate.',
         );
@@ -131,12 +132,13 @@ export async function authenticateWithDeviceCode(): Promise<void> {
         const result = await pca.acquireTokenByDeviceCode(deviceCodeRequest);
 
         if (result) {
-            await storeToken(result);
+            // Token is automatically cached to Redis via the cache plugin
             console.log('\nAuthentication successful!');
             console.log(`Authenticated as: ${result.account?.username}`);
             console.log(
-                'Token stored in Redis. You can now run the app normally.\n',
+                'Token cached in Redis. You can now run the app normally.\n',
             );
+            logger.info('OAuth tokens cached via MSAL cache plugin');
         }
     } catch (error: unknown) {
         const err = error as Error;
