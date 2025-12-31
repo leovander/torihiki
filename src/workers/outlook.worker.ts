@@ -3,10 +3,14 @@ import Imap from 'imap';
 import { simpleParser } from 'mailparser';
 import { createHash } from 'node:crypto';
 import { Readable } from 'stream';
-import { bold, join } from 'telegraf/format';
 import { redis, redisQueue } from '../lib/cache';
+import {
+    formatGoingDealMessage,
+    isGoingEmail,
+    parseGoingEmail,
+} from '../lib/going-parser';
 import { logger } from '../lib/logger';
-import { getAccessToken, generateXOAuth2Token } from '../lib/outlook-auth';
+import { generateXOAuth2Token, getAccessToken } from '../lib/outlook-auth';
 import {
     TELEGRAM_CHAT_ID,
     TELEGRAM_THREAD_IDS,
@@ -16,7 +20,6 @@ import { LocalWorker } from '../lib/worker';
 import { OUTLOOK_MESSAGE } from '../types/message';
 
 const QUEUE_NAME = 'outlook';
-const BODY_TRUNCATE_LENGTH = 3800;
 const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 // Environment variables
@@ -28,12 +31,6 @@ const OUTLOOK_ALLOWED_SENDERS = process.env.OUTLOOK_ALLOWED_SENDERS
           s.trim().toLowerCase(),
       )
     : [];
-
-function truncateBody(body: string | undefined, maxLength: number): string {
-    if (!body) return '';
-    if (body.length <= maxLength) return body;
-    return body.substring(0, maxLength) + '... [truncated]';
-}
 
 function isAllowedSender(fromEmail: string | undefined): boolean {
     if (OUTLOOK_ALLOWED_SENDERS.length === 0) return true;
@@ -135,6 +132,7 @@ async function fetchUnreadEmails(): Promise<OUTLOOK_MESSAGE[]> {
                                                 parsed.subject ||
                                                 '(No Subject)',
                                             body: parsed.text || '',
+                                            htmlBody: parsed.html || '',
                                             from: fromAddress,
                                             fromName:
                                                 parsed.from?.value?.[0]?.name ||
@@ -208,33 +206,35 @@ export const worker = new LocalWorker<OUTLOOK_MESSAGE>(
 
         // Mode 2: FORWARD mode - process individual email
         if (emailData.messageId && emailData.subject && emailData.category) {
-            const message = [];
+            const threadId = TELEGRAM_THREAD_IDS[emailData.category];
+            logger.info(
+                `Sending to thread: ${emailData.category} -> ${threadId}`,
+            );
 
-            // Subject (bold)
-            message.push(bold(emailData.subject));
-            message.push('\n\n');
-
-            // From info
-            if (emailData.fromName || emailData.from) {
-                const fromDisplay = emailData.fromName
-                    ? `${emailData.fromName} <${emailData.from}>`
-                    : emailData.from;
-                message.push(`From: ${fromDisplay}`);
-                message.push('\n\n');
-            }
-
-            // Body (truncated)
-            if (emailData.body) {
-                message.push(
-                    truncateBody(emailData.body, BODY_TRUNCATE_LENGTH),
+            if (!threadId) {
+                logger.warn(
+                    `No thread ID found for category: ${emailData.category}. Check TELEGRAM_THREAD_IDS env var.`,
                 );
             }
 
+            // Parse Going.com emails to extract deal info
+            let message = emailData.subject || '(No Subject)';
+
+            if (isGoingEmail(emailData.from) && emailData.htmlBody) {
+                const goingDeal = parseGoingEmail(emailData.htmlBody);
+                if (goingDeal) {
+                    logger.info(`Parsed Going deal: ${goingDeal.destination}`);
+                    message = formatGoingDealMessage(goingDeal);
+                } else {
+                    logger.warn(
+                        'Failed to parse Going email, sending subject only',
+                    );
+                }
+            }
+
             const telegramResponse = await telegramBot.telegram
-                .sendMessage(TELEGRAM_CHAT_ID, join(message), {
-                    reply_parameters: {
-                        message_id: TELEGRAM_THREAD_IDS[emailData.category],
-                    },
+                .sendMessage(TELEGRAM_CHAT_ID, message, {
+                    message_thread_id: threadId,
                 })
                 .catch(async (err: Error) => {
                     if (worker.rateLimiter) {

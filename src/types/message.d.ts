@@ -30,8 +30,26 @@ export type OUTLOOK_MESSAGE = {
     messageId?: string;
     subject?: string;
     body?: string;
+    htmlBody?: string;
     from?: string;
     fromName?: string;
     date?: string;
     category?: string;
+};
+
+export type GOING_AIRPORT = {
+    city: string;
+    code: string;
+    price: string;
+    originalPrice?: string;
+    tags?: string[];
+};
+
+export type GOING_DEAL = {
+    destination: string;
+    flightPrice: string;
+    originalPrice?: string;
+    travelDates: string;
+    bookWithin: string;
+    airports: GOING_AIRPORT[];
 };
