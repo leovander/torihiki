@@ -241,16 +241,25 @@ export class LocalWorker<DataType> {
     async setRepeatableJobs(
         repeatableJobs: RepeatableJob<DataType>[],
     ): Promise<void> {
-        for await (const repeatableJob of repeatableJobs) {
-            await this.queue.removeRepeatable(
-                `${repeatableJob.name}-repeat`,
-                repeatableJob.options,
+        // First, remove ALL existing repeatable jobs for this queue
+        // This ensures old jobs with different patterns are cleaned up
+        const existingJobs = await this.queue.getRepeatableJobs();
+        for (const existingJob of existingJobs) {
+            logger.debug(
+                `Removing existing repeatable job: ${existingJob.name} (${existingJob.pattern})`,
             );
+            await this.queue.removeRepeatableByKey(existingJob.key);
+        }
 
+        // Now add the new repeatable jobs
+        for (const repeatableJob of repeatableJobs) {
             const job = await this.queue.add(
                 `${repeatableJob.name}-repeat`,
                 repeatableJob.data,
                 repeatableJob.options,
+            );
+            logger.info(
+                `Added repeatable job: ${repeatableJob.name} with pattern: ${(repeatableJob.options.repeat as { pattern?: string })?.pattern}`,
             );
             this.repeatableJobs.push(job);
         }

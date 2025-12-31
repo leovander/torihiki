@@ -1,4 +1,5 @@
 import { worker as outlookWorker } from '../workers/outlook.worker';
+import { worker as slickdealWorker } from '../workers/slickdeal.worker';
 import { logger } from './logger';
 import { shutdownHandler } from './shutdown';
 import { LocalWorker, LocalWorkerDataTypes } from './worker';
@@ -10,7 +11,7 @@ export interface Workers {
 export const workers: Workers = {
     // discord: discordWorker,
     outlook: outlookWorker as LocalWorker<LocalWorkerDataTypes>,
-    // slickdeal: slickdealWorker as LocalWorker<LocalWorkerDataTypes>,
+    slickdeal: slickdealWorker as LocalWorker<LocalWorkerDataTypes>,
 };
 
 export async function runWorkers() {
