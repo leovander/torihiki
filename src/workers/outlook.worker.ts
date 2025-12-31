@@ -218,13 +218,16 @@ export const worker = new LocalWorker<OUTLOOK_MESSAGE>(
             }
 
             // Parse Going.com emails to extract deal info
-            let message = emailData.subject || '(No Subject)';
+            const subject = emailData.subject || '(No Subject)';
+            let message = subject;
+            let parseMode: 'Markdown' | undefined;
 
             if (isGoingEmail(emailData.from) && emailData.htmlBody) {
                 const goingDeal = parseGoingEmail(emailData.htmlBody);
                 if (goingDeal) {
                     logger.info(`Parsed Going deal: ${goingDeal.destination}`);
-                    message = formatGoingDealMessage(goingDeal);
+                    message = formatGoingDealMessage(goingDeal, subject);
+                    parseMode = 'Markdown';
                 } else {
                     logger.warn(
                         'Failed to parse Going email, sending subject only',
@@ -232,15 +235,43 @@ export const worker = new LocalWorker<OUTLOOK_MESSAGE>(
                 }
             }
 
-            const telegramResponse = await telegramBot.telegram
-                .sendMessage(TELEGRAM_CHAT_ID, message, {
-                    message_thread_id: threadId,
-                })
-                .catch(async (err: Error) => {
-                    if (worker.rateLimiter) {
-                        await worker.rateLimiter(err, job);
-                    }
-                });
+            let telegramResponse;
+            try {
+                telegramResponse = await telegramBot.telegram.sendMessage(
+                    TELEGRAM_CHAT_ID,
+                    message,
+                    {
+                        message_thread_id: threadId,
+                        parse_mode: parseMode,
+                    },
+                );
+            } catch (err: unknown) {
+                const error = err as Error;
+                // Check if it's a Markdown parsing error
+                if (
+                    parseMode === 'Markdown' &&
+                    error.message?.includes("can't parse")
+                ) {
+                    logger.warn(
+                        `Markdown parse failed, retrying without formatting: ${error.message}`,
+                    );
+                    // Retry without Markdown formatting
+                    telegramResponse = await telegramBot.telegram
+                        .sendMessage(TELEGRAM_CHAT_ID, message, {
+                            message_thread_id: threadId,
+                        })
+                        .catch(async (retryErr: Error) => {
+                            if (worker.rateLimiter) {
+                                await worker.rateLimiter(retryErr, job);
+                            }
+                        });
+                } else if (worker.rateLimiter) {
+                    await worker.rateLimiter(error, job);
+                } else {
+                    logger.error(`Telegram send error: ${error.message}`);
+                    throw error;
+                }
+            }
 
             return `telegram:${telegramResponse?.message_id}`;
         } else {
@@ -298,7 +329,7 @@ export const worker = new LocalWorker<OUTLOOK_MESSAGE>(
             name: 'outlook-poll',
             options: {
                 repeat: {
-                    pattern: '0 */1 * * * *',
+                    pattern: '0 */15 * * * *',
                 },
             },
         },

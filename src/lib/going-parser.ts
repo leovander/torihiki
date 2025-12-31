@@ -1,5 +1,5 @@
-import { logger } from './logger';
 import { GOING_AIRPORT, GOING_DEAL } from '../types/message';
+import { logger } from './logger';
 
 /**
  * Strips HTML tags and decodes entities, normalizes whitespace
@@ -18,6 +18,14 @@ function stripHtml(html: string): string {
 }
 
 /**
+ * Escapes Markdown special characters for Telegram
+ */
+function escapeMarkdown(text: string): string {
+    // Escape characters that have special meaning in Telegram Markdown
+    return text.replace(/([_*`[\]])/g, '\\$1');
+}
+
+/**
  * Parses a Going.com flight deal email and extracts structured data
  */
 export function parseGoingEmail(html: string): GOING_DEAL | null {
@@ -28,6 +36,8 @@ export function parseGoingEmail(html: string): GOING_DEAL | null {
     const destinationPatterns = [
         // Pattern: <h1>...<span class="tinyMce-placeholder">Destination</span></h1>
         /<h1[^>]*>.*?<span[^>]*tinyMce-placeholder[^>]*>([^<]+)<\/span>/i,
+        // Pattern: <h1 class="h1-short/long/md"> <!-- --> Destination</h1>
+        /<h1[^>]*class="h1-(?:short|long|md)"[^>]*>\s*(?:<!--.*?-->\s*)?([^<]+)<\/h1>/i,
         // Pattern: "nonstop flight to <a>...</a>"
         /(?:nonstop|cheap|direct)?\s*flight(?:s)? to\s*<a[^>]*>([^<]+)<\/a>/i,
         /booking a.*?flight to\s*<a[^>]*>([^<]+)<\/a>/i,
@@ -49,11 +59,21 @@ export function parseGoingEmail(html: string): GOING_DEAL | null {
         return null;
     }
 
-    // Extract flight price - look for "<strong>Flight price</strong></p>...<p...>$XXX roundtrip</p>"
-    const priceMatch = normalized.match(
+    // Extract flight price - multiple formats
+    const pricePatterns = [
+        // Format 1: <strong>Flight price</strong></p><p>$XXX roundtrip</p>
         /<strong>Flight price<\/strong>\s*<\/p>\s*<p[^>]*>([^<]+)<\/p>/i,
-    );
-    const flightPrice = priceMatch ? stripHtml(priceMatch[1]) : '';
+        // Format 2: Flight price&nbsp;</h3> $XXX roundtrip </td>
+        /Flight price(?:&nbsp;)?\s*<\/h3>\s*([^<]+)<\/td>/i,
+    ];
+    let flightPrice = '';
+    for (const pattern of pricePatterns) {
+        const match = normalized.match(pattern);
+        if (match) {
+            flightPrice = stripHtml(match[1]);
+            break;
+        }
+    }
 
     // Extract original price from strikethrough span
     const originalPriceMatch = normalized.match(
@@ -61,29 +81,49 @@ export function parseGoingEmail(html: string): GOING_DEAL | null {
     );
     const originalPrice = originalPriceMatch ? `$${originalPriceMatch[1]}` : '';
 
-    // Extract travel dates
-    const travelDatesMatch = normalized.match(
+    // Extract travel dates - multiple formats
+    const datesPatterns = [
+        // Format 1: <strong>Travel dates</strong></p><p>dates</p>
         /<strong>Travel dates<\/strong>\s*<\/p>\s*<p[^>]*>([^<]+)<\/p>/i,
-    );
-    const travelDates = travelDatesMatch ? stripHtml(travelDatesMatch[1]) : '';
+        // Format 2: Travel dates&nbsp;</h3> dates </td>
+        /Travel dates(?:&nbsp;)?\s*<\/h3>\s*([^<]+)<\/td>/i,
+    ];
+    let travelDates = '';
+    for (const pattern of datesPatterns) {
+        const match = normalized.match(pattern);
+        if (match) {
+            travelDates = stripHtml(match[1]);
+            break;
+        }
+    }
 
-    // Extract book within timeframe
-    const bookWithinMatch = normalized.match(
+    // Extract book within timeframe - multiple formats
+    const bookWithinPatterns = [
+        // Format 1: <strong>Book within</strong></p><p>~ X days</p>
         /<strong>Book within<\/strong>\s*<\/p>\s*<p[^>]*>([^<]+)<\/p>/i,
-    );
-    const bookWithin = bookWithinMatch ? stripHtml(bookWithinMatch[1]) : '';
+        // Format 2: Book within&nbsp;</h3> ~ X days </td>
+        /Book within(?:&nbsp;)?\s*<\/h3>\s*([^<]+)<\/td>/i,
+    ];
+    let bookWithin = '';
+    for (const pattern of bookWithinPatterns) {
+        const match = normalized.match(pattern);
+        if (match) {
+            bookWithin = stripHtml(match[1]);
+            break;
+        }
+    }
 
     // Extract airports from "From airports you're following" section
     const airports: GOING_AIRPORT[] = [];
 
-    // Pattern for airport entries: city name in link followed by airport code
+    // Pattern 1: International format with price per airport
     // <a ...>Los Angeles, California</a>&nbsp;<span>LAX</span>
     // followed by price: $544 and crossed out price: $1015
-    const airportPattern =
+    const airportPattern1 =
         /<a[^>]*>([^<]+)<\/a>\s*(?:&nbsp;)?\s*<span>([A-Z]{3})<\/span>[\s\S]*?<span[^>]*>\s*\$(\d+)\s*<\/span>(?:[\s\S]*?line-through[^>]*>\s*\$(\d+))?/gi;
 
     let airportMatch;
-    while ((airportMatch = airportPattern.exec(normalized)) !== null) {
+    while ((airportMatch = airportPattern1.exec(normalized)) !== null) {
         const city = stripHtml(airportMatch[1]);
         const code = airportMatch[2];
         const price = `$${airportMatch[3]}`;
@@ -97,6 +137,31 @@ export function parseGoingEmail(html: string): GOING_DEAL | null {
                 price,
                 originalPrice: origPrice,
             });
+        }
+    }
+
+    // Pattern 2: Domestic/home airport format
+    // <a ...>City, State</a>&nbsp; CODE </div> (no per-airport price, use main deal price)
+    if (airports.length === 0) {
+        const airportPattern2 =
+            /<a[^>]*>([^<]+)<\/a>\s*(?:&nbsp;)?\s*([A-Z]{3})\s*<\/div>/gi;
+
+        // Extract base price from flightPrice (e.g., "$98 roundtrip" -> "$98")
+        const basePriceMatch = flightPrice.match(/\$\d+/);
+        const basePrice = basePriceMatch ? basePriceMatch[0] : '';
+
+        while ((airportMatch = airportPattern2.exec(normalized)) !== null) {
+            const city = stripHtml(airportMatch[1]);
+            const code = airportMatch[2];
+
+            // Avoid duplicates and filter out likely non-airport matches
+            if (!airports.some((a) => a.code === code) && city.includes(',')) {
+                airports.push({
+                    city,
+                    code,
+                    price: basePrice,
+                });
+            }
         }
     }
 
@@ -131,38 +196,45 @@ export function parseGoingEmail(html: string): GOING_DEAL | null {
 
 /**
  * Formats a Going deal into a Telegram message
+ * Uses Markdown formatting for bold headers
  */
-export function formatGoingDealMessage(deal: GOING_DEAL): string {
+export function formatGoingDealMessage(
+    deal: GOING_DEAL,
+    subject: string,
+): string {
     const lines: string[] = [];
 
-    lines.push(`Going Deal: ${deal.destination}`);
+    // Use email subject as the title (escape Markdown chars)
+    lines.push(escapeMarkdown(subject));
     lines.push('');
 
     // Price line
-    let priceLine = `Price: ${deal.flightPrice}`;
+    let priceLine = `*Price:* ${escapeMarkdown(deal.flightPrice)}`;
     if (deal.originalPrice) {
-        priceLine += ` (was ${deal.originalPrice})`;
+        priceLine += ` (was ${escapeMarkdown(deal.originalPrice)})`;
     }
     lines.push(priceLine);
 
     // Travel dates
     if (deal.travelDates) {
-        lines.push(`Travel dates: ${deal.travelDates}`);
+        lines.push(`*Travel dates:* ${escapeMarkdown(deal.travelDates)}`);
     }
 
     // Book within
     if (deal.bookWithin) {
-        lines.push(`Book within: ${deal.bookWithin}`);
+        lines.push(`*Book within:* ${escapeMarkdown(deal.bookWithin)}`);
     }
 
     // Airports section
     if (deal.airports.length > 0) {
         lines.push('');
-        lines.push('From your airports:');
+        lines.push('*From your airports:*');
         for (const airport of deal.airports) {
-            let airportLine = `- ${airport.code} (${airport.city}) - ${airport.price}`;
+            const city = escapeMarkdown(airport.city);
+            const price = escapeMarkdown(airport.price);
+            let airportLine = `• ${airport.code} (${city}) - ${price}`;
             if (airport.tags && airport.tags.length > 0) {
-                airportLine += ` | ${airport.tags.join(', ')}`;
+                airportLine += ` | ${airport.tags.map(escapeMarkdown).join(', ')}`;
             }
             lines.push(airportLine);
         }
