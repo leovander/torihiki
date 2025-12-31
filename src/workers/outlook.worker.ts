@@ -1,11 +1,12 @@
 import { Job } from 'bullmq';
-import * as Imap from 'imap';
+import Imap from 'imap';
 import { simpleParser } from 'mailparser';
 import { createHash } from 'node:crypto';
 import { Readable } from 'stream';
 import { bold, join } from 'telegraf/format';
 import { redis, redisQueue } from '../lib/cache';
 import { logger } from '../lib/logger';
+import { getAccessToken, generateXOAuth2Token } from '../lib/outlook-auth';
 import {
     TELEGRAM_CHAT_ID,
     TELEGRAM_THREAD_IDS,
@@ -20,7 +21,6 @@ const CACHE_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
 
 // Environment variables
 const OUTLOOK_EMAIL = process.env.OUTLOOK_EMAIL ?? '';
-const OUTLOOK_APP_PASSWORD = process.env.OUTLOOK_APP_PASSWORD ?? '';
 const OUTLOOK_FOLDER = process.env.OUTLOOK_FOLDER ?? 'INBOX';
 const OUTLOOK_TELEGRAM_THREAD = process.env.OUTLOOK_TELEGRAM_THREAD ?? 'going';
 const OUTLOOK_ALLOWED_SENDERS = process.env.OUTLOOK_ALLOWED_SENDERS
@@ -41,19 +41,25 @@ function isAllowedSender(fromEmail: string | undefined): boolean {
     return OUTLOOK_ALLOWED_SENDERS.includes(fromEmail.toLowerCase());
 }
 
-function createImapConnection(): Imap {
+function createImapConnection(xoauth2Token: string): Imap {
     return new Imap({
         user: OUTLOOK_EMAIL,
-        password: OUTLOOK_APP_PASSWORD,
+        password: '', // Not used with xoauth2, but required by type
+        xoauth2: xoauth2Token,
         host: 'outlook.office365.com',
         port: 993,
         tls: true,
+        tlsOptions: { servername: 'outlook.office365.com' },
     });
 }
 
-function fetchUnreadEmails(): Promise<OUTLOOK_MESSAGE[]> {
+async function fetchUnreadEmails(): Promise<OUTLOOK_MESSAGE[]> {
+    // Get OAuth2 access token
+    const accessToken = await getAccessToken();
+    const xoauth2Token = generateXOAuth2Token(OUTLOOK_EMAIL, accessToken);
+
     return new Promise((resolve, reject) => {
-        const imap = createImapConnection();
+        const imap = createImapConnection(xoauth2Token);
         const emails: OUTLOOK_MESSAGE[] = [];
         const uidsToMarkRead: number[] = [];
 
