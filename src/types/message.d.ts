@@ -24,3 +24,14 @@ type SLICKDEAL_CATEGORY = {
     name: string;
     url: string;
 };
+
+export type OUTLOOK_MESSAGE = {
+    uid?: number;
+    messageId?: string;
+    subject?: string;
+    body?: string;
+    from?: string;
+    fromName?: string;
+    date?: string;
+    category?: string;
+};

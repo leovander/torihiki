@@ -7,7 +7,11 @@ import {
     Worker,
 } from 'bullmq';
 import { TelegramError } from 'telegraf';
-import { DISCORD_MESSAGE, SLICKDEAL_MESSAGE } from '../types/message';
+import {
+    DISCORD_MESSAGE,
+    OUTLOOK_MESSAGE,
+    SLICKDEAL_MESSAGE,
+} from '../types/message';
 import { logger } from './logger';
 
 const DEFAULT_QUEUE_REMOVE_ON_COMPLETE_AGE = process.env.REMOVE_ON_COMPLETE_AGE
@@ -51,7 +55,10 @@ export interface RepeatableJob<DataType> {
     options: JobsOptions;
 }
 
-export type LocalWorkerDataTypes = DISCORD_MESSAGE | SLICKDEAL_MESSAGE;
+export type LocalWorkerDataTypes =
+    | DISCORD_MESSAGE
+    | OUTLOOK_MESSAGE
+    | SLICKDEAL_MESSAGE;
 
 export class LocalWorker<DataType> {
     queueName: string;
