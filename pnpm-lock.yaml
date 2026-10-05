@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  imap@0.8.19:
+    hash: m545npje4fztk7fufk2dbfvjci
+    path: patches/imap@0.8.19.patch
+
 dependencies:
   '@azure/msal-node':
     specifier: ^3.8.4
@@ -34,7 +39,7 @@ dependencies:
     version: 4.19.2
   imap:
     specifier: ^0.8.19
-    version: 0.8.19
+    version: 0.8.19(patch_hash=m545npje4fztk7fufk2dbfvjci)
   ioredis:
     specifier: ^5.4.1
     version: 5.4.1
@@ -2227,13 +2232,14 @@ packages:
     engines: {node: '>= 4'}
     dev: true
 
-  /imap@0.8.19:
+  /imap@0.8.19(patch_hash=m545npje4fztk7fufk2dbfvjci):
     resolution: {integrity: sha512-z5DxEA1uRnZG73UcPA4ES5NSCGnPuuouUx43OPX7KZx1yzq3N8/vx2mtXEShT5inxB3pRgnfG1hijfu7XN2YMw==}
     engines: {node: '>=0.8.0'}
     dependencies:
       readable-stream: 1.1.14
       utf7: 1.0.2
     dev: false
+    patched: true
 
   /import-fresh@3.3.0:
     resolution: {integrity: sha512-veYYhQa+D1QBKznvhUHxb8faxlrwUnxseDAbAp457E0wLNio2bOSKnjYDhMj+YiAq61xrMGhQk9iXVk5FzgQMw==}

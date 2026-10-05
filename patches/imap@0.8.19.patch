@@ -1,0 +1,29 @@
+diff --git a/lib/Connection.js b/lib/Connection.js
+index 619862ff480cc9c9b75ec4efac0d9c5f8449df0d..546db3c158efdc4610c05ce471fc6dbebb7cacad 100644
+--- a/lib/Connection.js
++++ b/lib/Connection.js
+@@ -1651,12 +1651,6 @@ Connection.prototype._login = function() {
+           return;
+       }
+ 
+-      if (self.serverSupports('LOGINDISABLED')) {
+-        err = new Error('Logging in is disabled on this server');
+-        err.source = 'authentication';
+-        return reentry(err);
+-      }
+-
+       var cmd;
+       if (self.serverSupports('AUTH=XOAUTH') && self._config.xoauth) {
+         self._caps = undefined;
+@@ -1671,6 +1665,11 @@ Connection.prototype._login = function() {
+         //if (self.serverSupports('SASL-IR'))
+           cmd += ' ' + escape(self._config.xoauth2);
+         self._enqueue(cmd, checkCaps);
++      } else if (self.serverSupports('LOGINDISABLED')) {
++        // LOGINDISABLED only forbids plaintext LOGIN, not AUTHENTICATE
++        err = new Error('Logging in is disabled on this server');
++        err.source = 'authentication';
++        return reentry(err);
+       } else if (self._config.user && self._config.password) {
+         self._caps = undefined;
+         self._enqueue('LOGIN "' + escape(self._config.user) + '" "'
