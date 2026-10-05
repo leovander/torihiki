@@ -68,6 +68,23 @@ Once the bot is running, admins can interact with it on Telegram using the follo
 
 - `/admin queues` - Get queue stats
 
+### Outlook Authentication
+
+The Outlook worker reads email over IMAP using a Microsoft OAuth2 token. Tokens are cached in redis (`outlook:msal-cache:<OUTLOOK_EMAIL>`) and refreshed automatically, so you only need to log in once, or again whenever the refresh token expires or is revoked (the worker will log `Run the app with --outlook-auth to re-authenticate`).
+
+To trigger the Microsoft login (device code flow):
+
+```sh
+pnpm build
+pnpm outlook-auth
+```
+
+1. Open the URL printed in the terminal (https://microsoft.com/devicelogin).
+2. Enter the code shown.
+3. Sign in with the Microsoft account matching `OUTLOOK_EMAIL`.
+
+Once it prints `Authentication successful!` the token is saved to redis and the process exits. A running bot picks up the new token on its next poll (no restart needed). Redis must be reachable and `OUTLOOK_CLIENT_ID` set for this to work.
+
 ## Environment Variables
 
 ### Logger
@@ -138,6 +155,16 @@ Read more about [BullMQ's Rate Limiting](https://docs.bullmq.io/guide/rate-limit
 
 - `QUEUE_LIMIT_MAX (default: 10)`: Max number of jobs to process in the time period specified in `duration`.
 - `QUEUE_LIMIT_DURATION (default: 60000)`: Time in milliseconds. During this time, a maximum of `max` jobs will be processed.
+
+### Outlook
+
+- `OUTLOOK_CLIENT_ID`: Application (client) ID of your Azure app registration. The app must support "Personal Microsoft accounts only", have a `http://localhost` redirect URI (Mobile and desktop applications), and have "Allow public client flows" enabled.
+- `OUTLOOK_EMAIL`: Outlook address to read mail from
+- `OUTLOOK_FOLDER (default: INBOX)`: IMAP folder to monitor
+- `OUTLOOK_TELEGRAM_THREAD (default: going)`: Topic name from `TELEGRAM_THREAD_IDS` to forward emails to
+- `OUTLOOK_ALLOWED_SENDERS`: Comma-separated sender emails to allow (empty allows all)
+
+See [Outlook Authentication](#outlook-authentication) to log in.
 
 ## Features
 
